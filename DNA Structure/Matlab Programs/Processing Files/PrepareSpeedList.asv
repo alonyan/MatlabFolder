@@ -1,0 +1,11 @@
+SaveFilePath = 'F:\Mark\SpeedList';
+%%
+dir1 = 'F:\Mark\AOCor5k\';
+setNo = 2;% 5k
+files = dir([dir1 'AO*']);
+fnames = {files.name};
+
+for i = 1:length(fnames),
+    SpeedList(i).setNo = setNo;
+    
+end;

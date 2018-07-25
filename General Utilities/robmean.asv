@@ -1,0 +1,3 @@
+function y =robmean(x, sigma)
+% averages vector x taking into account errors sigma
+% size of x and 

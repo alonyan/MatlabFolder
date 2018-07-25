@@ -1,0 +1,8 @@
+function pSTAT5 = IL2RfitGlobal(beta, X)
+Ncurves = (length(beta)-1)/2;
+pSTAT5 = [];
+A = beta(1)
+BETA = reshape(beta(2:length(beta)), )
+for i
+pSTAT5 = beta(1) + beta(2)./(1+ beta(3)./X);
+

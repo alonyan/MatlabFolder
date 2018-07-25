@@ -1,0 +1,34 @@
+%% Calculate EtBr to DNA ratios
+n = 2.5;
+K=1.5e5; %M^(-1) data from Mesquito paper
+
+r = 0.2; % desirable ratio of bound dye to bp
+
+H = (1-(n-1)*r).^(n-1)./(K*(1-n*r).^n)  %in M
+c1 = r*H   % concentration of dilution solution
+
+%% Preparation of bulk dye-DNA mixture
+Cbp = 462e-6; %957e-6; % stock concentration of bp
+Ct = 1000e-6; % stock concentration of EtBr
+V = 13; % desirable final volume in uL
+buffer_frac = 0.1;
+
+
+Vbp = ((1-buffer_frac)*Ct - c1)/(Ct + Cbp*r)*V , % DNA stock volume; 0.9 stems from adding 10X buffer to a final mixture
+Vt = (1-buffer_frac)*V - Vbp  , % EtBr stock volume
+
+Cnew = Cbp*Vbp/V % final concentratio of base pairs
+
+%% Preparation of bulk dye-DNA mixture
+% assume both DNA and dye are alredy in the buffer
+Cbp = 39; % DNA concentration inng/ul
+Cbp = Cbp/650*1e-3; % stock concentration of bp in molars
+Ct = 50e-6; % stock concentration of EtBr
+V = 10; % desirable final volume in uL
+%buffer_frac = 0.1;
+buffer_frac = 0;
+
+Vbp = ((1-buffer_frac)*Ct - c1)/(Ct + Cbp*r)*V , % DNA stock volume; 0.9 stems from adding 10X buffer to a final mixture
+Vt = (1-buffer_frac)*V - Vbp  , % EtBr stock volume
+
+Cnew = Cbp*Vbp/V % final concentratio of base pairs

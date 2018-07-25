@@ -1,0 +1,9 @@
+Theta = 180;
+ThetaRad = pi*rem(Theta,360)/180;
+XZ0 = [325,334];%rotation axis
+XZ = [Scp.X, Scp.Z]; %current position, we want to rotate around
+R = [cos(ThetaRad) -sin(ThetaRad); sin(ThetaRad), cos(ThetaRad)];
+XZ1 = R*(XZ-XZ0)'
+Scp.Angle = Scp.Angle +Theta;
+Scp.X = XZ0(1)+XZ1(1);
+Scp.Z = XZ0(2)+XZ1(2);

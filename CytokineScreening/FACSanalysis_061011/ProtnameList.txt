@@ -1,0 +1,213 @@
+Fragilis;Interferon induced transmembrane protein 3;Interferon-inducible protein 15;Putative uncharacterized protein;MCG22590, 
+  mRNA Lifetime: 16.440000, protein Lifetime: 11.180000  
+
+DNA damage-binding protein 1;Damage-specific DNA-binding protein 1;UV-damaged DNA-binding factor;DDB p127 subunit, 
+  mRNA Lifetime: 16.690000, protein Lifetime: 9.710000  
+
+H2-D1 protein;H-2 class I histocompatibility antigen, L-D alpha chain;MHC class I D-q alpha-chain (H2 haplotype), exons 1-3.;H-2 class I histocompatibility antigen, D-B alpha chain;H-2D cell surface glycoprotein, 
+  mRNA Lifetime: 23.870000, protein Lifetime: 7.160000  
+
+Transmembrane protein 176B;Protein LR8, 
+  mRNA Lifetime: 24.290000, protein Lifetime: 6.300000  
+
+E3 ubiquitin-protein ligase NEDD4;Neural precursor cell expressed developmentally down-regulated protein 4, 
+  mRNA Lifetime: 22.590000, protein Lifetime: 9.300000  
+
+Putative uncharacterized protein;CD81 antigen;26 kDa cell surface protein TAPA-1;Target of the antiproliferative antibody 1, 
+  mRNA Lifetime: 18.140000, protein Lifetime: 10.800000  
+
+NADH dehydrogenase [ubiquinone] 1 alpha subcomplex subunit 4;NADH-ubiquinone oxidoreductase MLRQ subunit;Complex I-MLRQ, 
+  mRNA Lifetime: 17.700000, protein Lifetime: 11.620000  
+
+Cathepsin L1;Major excreted protein;p39 cysteine proteinase;Cathepsin L1 heavy chain;Cathepsin L1 light chain, 
+  mRNA Lifetime: 18.410000, protein Lifetime: 1.130000  
+
+Putative uncharacterized protein;cAMP-dependent protein kinase type I-alpha regulatory subunit, 
+  mRNA Lifetime: 16.630000, protein Lifetime: 5.010000  
+
+Integrin beta-1;Fibronectin receptor subunit beta;Integrin VLA-4 subunit beta, 
+  mRNA Lifetime: 19.170000, protein Lifetime: 11.750000  
+
+CD151 antigen;Platelet-endothelial tetraspan antigen 3;GP27;Membrane glycoprotein SFA-1, 
+  mRNA Lifetime: 16.510000, protein Lifetime: 11.980000  
+
+Collagen alpha-1(I) chain;Alpha-1 type I collagen, 
+  mRNA Lifetime: 33.140000, protein Lifetime: 2.870000  
+
+Catenin alpha-1;102 kDa cadherin-associated protein;CAP102;Alpha E-catenin, 
+  mRNA Lifetime: 16.120000, protein Lifetime: 9.340000  
+
+Ornithine decarboxylase, 
+  mRNA Lifetime: 16.340000, protein Lifetime: 6.250000  
+
+Glypican-1;Secreted glypican-1, 
+  mRNA Lifetime: 19.080000, protein Lifetime: 6.970000  
+
+SPARC;Secreted protein acidic and rich in cysteine;Osteonectin;Basement-membrane protein 40;Secreted acidic cysteine rich glycoprotein, 
+  mRNA Lifetime: 23.610000, protein Lifetime: 1.790000  
+
+Glypican-4;K-glypican;Secreted glypican-4, 
+  mRNA Lifetime: 19.640000, protein Lifetime: 9.680000  
+
+Collagen alpha-2(I) chain;Alpha-2 type I collagen, 
+  mRNA Lifetime: 40.470000, protein Lifetime: 2.780000  
+
+Renin receptor;Renin/prorenin receptor;ATPase H(+)-transporting lysosomal accessory protein 2;ATPase H(+)-transporting lysosomal-interacting protein 2, 
+  mRNA Lifetime: 22.290000, protein Lifetime: 6.350000  
+
+Biglycan;Bone/cartilage proteoglycan I;PG-S1, 
+  mRNA Lifetime: 28.310000, protein Lifetime: 0.620000  
+
+Laminin subunit beta-1, 
+  mRNA Lifetime: 19.260000, protein Lifetime: 7.900000  
+
+Gamma-aminobutyric acid receptor-associated protein;GABA(A) receptor-associated protein;Gamma-aminobutyric acid receptor-associated protein-like 1;GABA(A) receptor-associated protein-like 1;Glandular epithelial cell protein 1;Gamma-aminobutyric acid recep, 
+  mRNA Lifetime: 18.480000, protein Lifetime: 4.460000  
+
+Putative uncharacterized protein, 
+  mRNA Lifetime: 17.580000, protein Lifetime: 12.350000  
+
+V-type proton ATPase subunit S1;Vacuolar proton pump subunit S1;V-ATPase S1 accessory protein;V-ATPase Ac45 subunit;Protein C7-1;Putative uncharacterized protein;ATPase, H+ transporting, lysosomal accessory protein, 
+  mRNA Lifetime: 20.300000, protein Lifetime: 6.910000  
+
+Transmembrane protein 176A;Kidney-expressed gene 2 protein;Gene signature 188, 
+  mRNA Lifetime: 21.160000, protein Lifetime: 6.620000  
+
+NADH dehydrogenase [ubiquinone] 1 alpha subcomplex subunit 7;NADH-ubiquinone oxidoreductase subunit B14.5a;Complex I-B14.5a, 
+  mRNA Lifetime: 18.150000, protein Lifetime: 11.710000  
+
+Bone marrow stromal antigen 2;HM1.24 antigen, 
+  mRNA Lifetime: 19.150000, protein Lifetime: 8.890000  
+
+Beta-2-microglobulin;Putative uncharacterized protein, 
+  mRNA Lifetime: 16.050000, protein Lifetime: 2.910000  
+
+Putative uncharacterized protein;Tapasin;TAP-binding protein;TAP-associated protein, 
+  mRNA Lifetime: 25.540000, protein Lifetime: 11.270000  
+
+Transmembrane protein 9, 
+  mRNA Lifetime: 15.910000, protein Lifetime: 7.820000  
+
+Collagen alpha-1(VI) chain, 
+  mRNA Lifetime: 34.190000, protein Lifetime: 2.340000  
+
+Glrx2 protein;Glutaredoxin-2, mitochondrial;Glutaredoxin 2 (Thioltransferase);Glutaredoxin 2 (Thioltransferase), isoform CRA_a, 
+  mRNA Lifetime: 17.160000, protein Lifetime: 8.790000  
+
+Pigment epithelium-derived factor;Serpin-F1;Stromal cell-derived factor 3;Caspin;Serine (Or cysteine) proteinase inhibitor, clade F, member 1, 
+  mRNA Lifetime: 16.380000, protein Lifetime: 1.690000  
+
+Melanoma-associated antigen D1;MAGE-D1 antigen;Neurotrophin receptor-interacting MAGE homolog;Dlxin-1;MFLJ00163 protein, 
+  mRNA Lifetime: 16.350000, protein Lifetime: 2.250000  
+
+Carboxypeptidase D;Metallocarboxypeptidase D;gp180;Putative uncharacterized protein, 
+  mRNA Lifetime: 18.260000, protein Lifetime: 7.520000  
+
+Ubiquitin-like protein 5, 
+  mRNA Lifetime: 16.310000, protein Lifetime: 9.150000  
+
+MCG140951;Plexin B2;Plxnb2 protein;MKIAA0315 protein, 
+  mRNA Lifetime: 25.820000, protein Lifetime: 10.800000  
+
+Nucleobindin-1;CALNUC;Putative uncharacterized protein, 
+  mRNA Lifetime: 32.690000, protein Lifetime: 8.230000  
+
+Syndecan-2;Fibroglycan;Heparan sulfate proteoglycan core protein, 
+  mRNA Lifetime: 20.690000, protein Lifetime: 4.390000  
+
+Peroxidasin homolog, 
+  mRNA Lifetime: 21.100000, protein Lifetime: 5.030000  
+
+Cystatin-C;Cystatin-3;Cystatin C, 
+  mRNA Lifetime: 20.110000, protein Lifetime: 5.360000  
+
+Amino-terminal enhancer of split;GRG protein;Protein ESP1;Grg-5, 
+  mRNA Lifetime: 22.710000, protein Lifetime: 7.250000  
+
+Phospholipase D3;Choline phosphatase 3;Phosphatidylcholine-hydrolyzing phospholipase D3;Schwannoma-associated protein 9, 
+  mRNA Lifetime: 29.650000, protein Lifetime: 10.910000  
+
+Laminin subunit gamma-1;Laminin B2 chain, 
+  mRNA Lifetime: 19.440000, protein Lifetime: 8.400000  
+
+Synaptosomal-associated protein 47;Synaptosomal-associated 47 kDa protein;Novel protein (1110031B06Rik), 
+  mRNA Lifetime: 16.030000, protein Lifetime: 8.800000  
+
+Truncated ceruloplasmin;Putative uncharacterized protein;Ceruloplasmin;Ferroxidase, 
+  mRNA Lifetime: 23.230000, protein Lifetime: 10.900000  
+
+Laminin, alpha 5;Laminin subunit alpha-5;Putative uncharacterized protein, 
+  mRNA Lifetime: 23.740000, protein Lifetime: 7.920000  
+
+Lysosomal-associated transmembrane protein 4A;Golgi 4-transmembrane spanning transporter;Mouse transporter protein, 
+  mRNA Lifetime: 16.710000, protein Lifetime: 5.330000  
+
+Integrator complex subunit 1, 
+  mRNA Lifetime: 23.400000, protein Lifetime: 6.480000  
+
+Collagen alpha-2(VI) chain, 
+  mRNA Lifetime: 39.090000, protein Lifetime: 2.790000  
+
+Endoplasmic reticulum metallopeptidase 1;Felix-ina, 
+  mRNA Lifetime: 21.060000, protein Lifetime: 7.180000  
+
+Cullin-7;p185;p193, 
+  mRNA Lifetime: 19.540000, protein Lifetime: 11.540000  
+
+Collagen alpha-1(V) chain, 
+  mRNA Lifetime: 17.950000, protein Lifetime: 6.290000  
+
+Poliovirus receptor-related protein 2;Murine herpesvirus entry protein B;Nectin-2;Poliovirus receptor homolog, 
+  mRNA Lifetime: 16.360000, protein Lifetime: 9.960000  
+
+Collagen alpha-1(IV) chain, 
+  mRNA Lifetime: 23.660000, protein Lifetime: 4.190000  
+
+Protein EFR3 homolog A;Protein EFR3-like, 
+  mRNA Lifetime: 19.900000, protein Lifetime: 9.600000  
+
+Putative uncharacterized protein;Rnasen protein, 
+  mRNA Lifetime: 21.550000, protein Lifetime: 7.920000  
+
+45 kDa calcium-binding protein;Stromal cell-derived factor 4, 
+  mRNA Lifetime: 23.000000, protein Lifetime: 7.060000  
+
+Perlecan (Heparan sulfate proteoglycan 2), 
+  mRNA Lifetime: 29.370000, protein Lifetime: 6.600000  
+
+H-2 class II histocompatibility antigen gamma chain;MHC class II-associated invariant chain;Ia antigen-associated invariant chain, 
+  mRNA Lifetime: 24.810000, protein Lifetime: 5.290000  
+
+Collagen alpha-2(IV) chain;Canstatin, 
+  mRNA Lifetime: 24.340000, protein Lifetime: 3.830000  
+
+Integrin beta-7;Integrin beta-P;M290 IEL antigen, 
+  mRNA Lifetime: 21.820000, protein Lifetime: 2.530000  
+
+Ecm1 protein;Extracellular matrix protein 1;Secretory component p85;Putative uncharacterized protein;Extracellular matrix protein, 
+  mRNA Lifetime: 19.480000, protein Lifetime: 3.060000  
+
+Collagen alpha-2(V) chain, 
+  mRNA Lifetime: 31.210000, protein Lifetime: 3.550000  
+
+Adipocyte enhancer-binding protein 1;Aortic carboxypeptidase-like protein, 
+  mRNA Lifetime: 16.880000, protein Lifetime: 5.050000  
+
+Putative uncharacterized protein;Fibulin 2, isoform CRA_b;Fibulin-2, 
+  mRNA Lifetime: 18.340000, protein Lifetime: 5.490000  
+
+Neogenin, 
+  mRNA Lifetime: 18.920000, protein Lifetime: 6.480000  
+
+Lysyl oxidase-like 4;Lysyl oxidase homolog 4;Lysyl oxidase-like protein 4;Lysyl oxidase-related protein C, 
+  mRNA Lifetime: 20.290000, protein Lifetime: 2.450000  
+
+Calsyntenin-1;Alcadein-alpha;Soluble Alc-alpha;CTF1-alpha;C-terminal fragment 1-alpha, 
+  mRNA Lifetime: 21.400000, protein Lifetime: 6.450000  
+
+Protocadherin gamma C3;Protocadherin gamma subfamily C, 3;Pcdhgc3 protein, 
+  mRNA Lifetime: 21.340000, protein Lifetime: 4.850000  
+
+Putative uncharacterized protein;Disintegrin and metalloproteinase domain-containing protein 17;TNF-alpha-converting enzyme;TNF-alpha convertase, 
+  mRNA Lifetime: 17.700000, protein Lifetime: 5.750000  
+

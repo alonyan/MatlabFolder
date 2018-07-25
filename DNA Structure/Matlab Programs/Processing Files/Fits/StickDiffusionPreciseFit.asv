@@ -1,0 +1,20 @@
+function y = StickDiffusionPreciseFit(beta, t, wXY)
+% after Kruse Phys. Biology 3, 255 (2006)
+A = beta(1);
+tauDiff = beta(2);
+tau1 = beta(3);
+tau2 = beta(4);
+
+D = wXY^2/(4*tauDiff);
+for i=1:length(t),
+    y(i) = quadgk( @(q) myfun(q, t(i), wXY, D, tau1, tau2), 0, inf );
+end;
+
+
+function z = myfun(q, t, wXY, D, tau1, tau2)
+Delta = sqrt( (D*q.^2 + 1/tau1 + 1/tau2).^2 - 4*D*q.^2/tau2);
+Lam1 = - (D*q.^2 + 1/tau1 +1/tau2)/2 + Delta/2;
+Lam2 = Lam1 - Delta;
+A1 =
+
+z = q.*exp(-wXY^2*q.^2/4).*exp(-q.^2*D*t);

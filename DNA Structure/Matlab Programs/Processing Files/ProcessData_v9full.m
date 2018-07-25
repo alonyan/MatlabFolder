@@ -1,0 +1,361 @@
+% %% List data structure names 
+% nameTemplate = 'L48_V_';
+% clear vel;
+% strucNames = who([nameTemplate '*'])
+% for i = 1:length(strucNames),
+%     vel(i) = sscanf(strucNames{i}, [nameTemplate '%d']);
+% end;
+% [temp, I] = sort(vel);
+% 
+% strucNames = strucNames(I) %check the strucNames and delete/add!!!! 
+%% 1) Constants
+filepath = 'D:\People\Oleg\Experiments\Actin\070310\';
+dataname = 'Actin_Exp7_ 1uM_v4468';
+
+ fields_to_removeGood = {
+           'corrfunc' 
+           'AfterPulseCalculated'
+           'trace'
+           'CR'
+           'CF_CR'
+           'dIdI'
+           'corrfuncgood'
+           'tracegood'
+           'CF_CRgood'
+           'dIdIgood'
+           'AveragedIdI'
+           'AverageAlldIdI'
+           'errordIdI'
+           'errorAlldIdI'
+           'WeightAverageCF'
+           'WeightAverageAllCF'
+           'errorWA_CF'
+           'errorAllWA_CF'
+           'score'
+           'AfterPulse'
+           'Xcoord'
+           'Ycoord'
+           'Zcoord'
+           'v_um_s'
+           't_v'
+           };
+       
+  fields_to_removeBad = {
+            'corrfuncbad'
+           'tracebad'
+           'CF_CRbad'
+           'dIdIbad'
+      };
+  
+warning('off', 'MATLAB:Axes:NegativeDataInLogAxis')
+%% 2) Static and dynamic Rh6G measurements to evaluate field size
+RhName = {'Rh6G_v50p34_1' 'Rh6G_v50p34_2' 'Rh6G_v50p34_3' 'Rh6G_v50p34_4'} % define static rh file name
+RhNameV = {'Rh6G_v4468p41_1' 'Rh6G_v4468p41_2' 'Rh6G_v4468p41_3' 'Rh6G_v4468p41_4'} %dynamic
+Rh = LoadMultipleCorrFunc_v2(filepath, RhName, 'Rejection', 2, 'NormalizationRange', [1e-3 2e-3],  'DeleteList', []);
+RhV = LoadMultipleCorrFunc_v2(filepath, RhNameV, 'Rejection', 2, 'NormalizationRange', [1e-3 2e-3],  'DeleteList', []);
+FitParam = PlotFitCF(Rh, [0.002 1000], @Diffusion3D, [20000 0.05 30]);
+wSq = FitParam.beta(3, 1);
+if isfield(RhV,  'corrfuncbad')
+        RhV = rmfield(RhV, [fields_to_removeGood; fields_to_removeBad]);
+else 
+        RhV = rmfield(RhV, fields_to_removeGood);
+end;
+
+%% 3)  make field and fit it
+minVt = 0.05; % um
+dynRange  = 5;
+lowestG = 1e-2;
+showRange =20;
+NormRange = [1 2]*1e-3;
+B.lag = Rh.lag;
+B.vt_um = [RhV.vt_um RhV.vt_um];
+B.Normalized = [Rh.Normalized RhV.Normalized];
+B.errorNormalized = [Rh.errorNormalized RhV.errorNormalized];
+
+FigHdl = FitField_GUI_twoCF(B, minVt, dynRange, showRange, lowestG, wSq, NormRange*1e3)
+%%  4) Extract field 
+B = guidata(FigHdl);
+close(FigHdl);
+wXY = B.field.paramGauss(2)
+B.field.wXY = wXY;
+B.field.wSq = wSq;
+eval([dataname '.B = B;']);
+
+%% 5) Load data%
+%%%%%%%%%%%
+fnametmpl = 'Actin_Exp7_ 1uM_v';
+fnames = dir([filepath fnametmpl '4468*']);
+%filenames = { 'L10dil2_v2857p00_1'  'L10dil2_v2857p00_3'};
+filenames =  {fnames.name}
+Rejection = 2;
+NormRange = [1e-3 3e-3];
+S = LoadMultipleCorrFunc_v2(filepath, filenames, 'Rejection', Rejection, 'NormalizationRange', NormRange,  'DeleteList', []);
+
+%% 6) Cluster analysis
+Nclust = 10;
+LinkageType ='single'% 'single', 'average', 'weighted'
+Range = [1e-2 100]; % range of decay of the correlation function
+[T, j, DeleteList] = ClusterizeCF_CR_v1(S, 'No of Clusters', Nclust, 'Normalization range', NormRange, 'Distance range', Range, 'Linkage', LinkageType);
+
+%% 7) Reload if needed
+Rejection = 10;
+ S = LoadMultipleCorrFunc_v2(filepath, filenames, 'Rejection', Rejection, 'DeleteList', DeleteList);
+ 
+%% 8) Plot Speed
+plot(S.v_um_s)
+figure(gcf)
+%% 9) remove fields which are not needed for futher processing
+if isfield(S,  'corrfuncbad')
+        S = rmfield(S, [fields_to_removeGood; fields_to_removeBad]);
+else 
+        S = rmfield(S, fields_to_removeGood);
+end;
+
+%% 10) Find range for baseline subtraction
+semilogx(S.lag, S. Normalized);
+axis([1e-3 10000 -0.1 0.1])
+figure(gcf)
+title('find range for baseline subtraction');
+pause;
+S.rangeBL = InAxes;
+S.Normalized = (S.Normalized - mean(S.Normalized(InAxes)))/(1 - mean(S.Normalized(InAxes)));
+semilogx(S.lag, S. Normalized);
+
+title('find plateau for normalization');
+axis([1e-3 1e-2 0.8 1.2])
+figure(gcf);
+pause;
+S.rangeNorm = InAxes;
+S.Normalized = S.Normalized /mean(S.Normalized(InAxes));
+S.G0 = mean(S.AverageCF_CR(S.rangeNorm)) - mean(S.AverageCF_CR(S.rangeBL));
+semilogx(S.lag, S. Normalized);
+
+% %% 11) Load static data%
+% %%%%%%%%%%%
+% %Stfilenames = { 'L10dil2_v160p00_0'  'L10dil2_v160p00_2'};
+% fnames = dir([filepath fnametmpl '53*']);
+% %filenames = { 'L10dil2_v2857p00_1'  'L10dil2_v2857p00_3'};
+% Stfilenames =  {fnames.name}
+% Rejection = 2;
+% NormRange = [1e-3 3e-3];
+% St = LoadMultipleCorrFunc_v2(filepath, Stfilenames, 'Rejection', Rejection, 'NormalizationRange', NormRange,  'DeleteList', []);
+% 
+% %% 12) Cluster analysis
+% Nclust = 5;
+% LinkageType ='single'% 'single', 'average', 'weighted'
+% Range = [1e-2 100]; % range of decay of the correlation function
+% [T, j, DeleteList] = ClusterizeCF_CR_v1(St, 'No of Clusters', Nclust, 'Normalization range', NormRange, 'Distance range', Range, 'Linkage', LinkageType);
+% 
+% %% 13) Reload if needed
+% Rejection = 10;
+%  St = LoadMultipleCorrFunc_v2(filepath, Stfilenames, 'Rejection', Rejection, 'DeleteList', DeleteList);
+%  
+% %% 14) Plot Speed
+% plot(S.v_um_s)
+% figure(gcf)
+% %% 15) remove fields which are not needed for futher processing
+% if isfield(St,  'corrfuncbad')
+%         St = rmfield(St, [fields_to_removeGood; fields_to_removeBad]);
+% else 
+%         St= rmfield(St, fields_to_removeGood);
+% end;
+% 
+% %% 16) Find range for baseline subtraction
+% semilogx(St.lag, St. Normalized);
+% axis([1e-3 10000 -0.1 0.1])
+% figure(gcf)
+% title('find range for baseline subtraction');
+% pause;
+% St.rangeBL = InAxes;
+% St.Normalized = (St.Normalized - mean(St.Normalized(InAxes)))/(1 - mean(St.Normalized(InAxes)));
+% semilogx(St.lag, St. Normalized);
+% 
+% title('find plateau for normalization');
+% axis([1e-3 1e-2 0.8 1.2])
+% figure(gcf);
+% pause;
+% St.rangeNorm = InAxes;
+% St.Normalized = St.Normalized /mean(St.Normalized(InAxes));
+% St.G0 = mean(St.AverageCF_CR(St.rangeNorm)) - mean(St.AverageCF_CR(St.rangeBL));
+% semilogx(St.lag, St. Normalized);
+% jt = 1:min(length(S.lag), length(St.lag));
+% S.Corrected = S.Normalized;
+% S.Corrected(jt) = (S.Normalized(jt)./St.Normalized(jt)).^(1./St.Normalized(jt));
+
+%% !!!!!! Run this if your data have been   processed previously
+filepath = 'D:\Oleg\MyPapers\Scanning FCS\Data\process051008.mat';
+dataname = 'data230908_proc0510';
+load(filepath, dataname) ;
+eval(dataname)
+%% !!!!!! Run this if your data have been   processed previously
+fieldnm = 'L6uM_v4111p13_1';
+S = eval([dataname '.' fieldnm])
+wXY = eval([dataname '.B.field.wXY'])
+wSq = eval([dataname '.B.field.wSq'])
+
+%% 17) preparing for Fourier Transform (return to using Normalized field)
+N = 512; % number of interpolation points
+Rm = 10; %upper limit of corrfunc confidence
+minVtSq = 0.0025; 
+lowestG = 1e-2;
+
+load  'D:\People\Oleg\Matlab Programs\Processing Files\c.mat';  %for Hankel Transform
+c = c(1, 1:N+1);    %Bessel function zeros;
+S.r = c(1:N)'*Rm/c(N+1);   % Radius vector
+ 
+% S.fr = exp(interp1(S.vt_um.^2, log(S.Normalized), S.r.^2, 'linear'));
+% %zero-padding from the first zero encountered
+% S.fr = real(S.fr);
+% S.fr(find(S.fr< 0)) = 0;
+% 
+% semilogy(S.vt_um.^2, S.Normalized, '-o', S.r.^2, S.fr);
+% pause;
+
+
+j3= find(S.vt_um( :).^2 > minVtSq); 
+Stemp.vt_um = S.vt_um(j3);
+Stemp.Normalized = S.Normalized(j3);
+k= find(Stemp.Normalized < lowestG);
+if isempty(k),
+       k=length(Stemp.Normalized)+1;
+end;
+j2= 1:(min(k)-1);
+       
+               
+ %       semilogyErBar(B.vt_um(i, j2).^2, B.ReNormalized(i, j2), B.errorReNormalized(i, j2),  'o') ;
+  %      v= axis;
+    
+        %j1 = j2;
+        
+ 
+ 
+S.fr = exp(interp1(Stemp.vt_um(j2).^2, log(Stemp.Normalized(j2) ), S.r.^2, 'linear', 'extrap'));
+%zero-padding from the first zero encountered
+S.fr = real(S.fr);
+S.fr(find(S.fr< 0)) = 0;
+
+S.fr_int = exp(robustinterp(S.r.^2, Stemp.vt_um(j2).^2, log(Stemp.Normalized(j2)), 3));
+
+S.fr_int =  S.fr_int(:);
+semilogy(S.vt_um( :).^2, S.Normalized( :) , '-o', S.r.^2, [S.fr S.fr_int]);
+axis([0 10 1e-3 1.3])
+figure(gcf)
+       
+
+% title('Find lower range for interpolation');
+% axis([0 5 1e-3 1.2]);
+% figure(gcf)
+% pause;
+% ax = axis;
+% %j1 = InAxes; %
+% j1 =find( (S.vt_um.^2 > ax(1)) & (S.vt_um.^2 < ax(2)) & (S.Corrected > ax(3)) & (S.Corrected < ax(4)));
+% p1 = polyfit(S.vt_um(j1).^2, log(S.Corrected(j1)), 1);
+% 
+% S.fr_int = S.fr;
+% j2 = find(S.r.^2 >  ax(2));
+% S.fr_int(j2) = exp(polyval(p1, S.r(j2).^2));
+% semilogy(S.vt_um.^2, S.Corrected, '-o', S.r(j2).^2, S.fr_int(j2));
+% axis([0 5 1e-3 1.2]);
+%  %%
+% semilogy(S.vt_um.^2, S.Corrected, '-o', S.r.^2, S.fr_int);
+% title('Find upper range for interpolation');
+% axis([0 0.025 0.8 1.2]);
+% figure(gcf)
+% pause;
+% ax = axis;
+% %j3 = InAxes; % 
+% j3 = find((S.vt_um.^2 > ax(1)) & (S.vt_um.^2 < ax(2)) );
+% p2 = polyfit(S.vt_um(j3).^2, log(S.Corrected(j3)), 1);
+% 
+% j4 = find(S.r.^2  <  ax(2));
+% S.fr_int(j4) = exp(polyval(p2, S.r(j4).^2));
+% semilogy(S.vt_um.^2, S.Corrected, '-o', S.r.^2, S.fr_int);
+% axis(ax);
+
+%% 18) "Honest" Fourier Transform
+%wXY = B.field.paramGauss(2)
+FY = FourierTransform(S, '2D');
+S.q = FY.q;
+S.fq = FY.fq;
+
+%interpolated Fourier Transform
+Y.r = S.r;
+Y.fr = S.fr_int;
+FY = FourierTransform(Y, '2D');
+S.fq_int = FY.fq;
+
+semilogy(S.q.^2, S.fq, S.q.^2, S.fq_int)
+figure(gcf);
+pause;
+
+S.Sq = S.fq.*exp(wXY^2*S.q.^2/4);
+S.Sq_int = S.fq_int.*exp(wXY^2*S.q.^2/4);
+loglog(S.q.^2, S.Sq, S.q.^2, S.Sq_int);
+figure(gcf)
+
+
+%% One step  correction  for finite aspect ratio
+ wXYsq = wXY^2;
+ dqz = median(diff(S.q))/sqrt(wSq);
+ S.qz = 0:dqz:(max(S.q)/sqrt(wSq)); 
+ [Q, Qz] = meshgrid(S.q, S.qz);
+ Qvec = sqrt(Q.^2 + Qz.^2);
+ 
+ q = S.q;
+ qz = S.qz;
+ 
+normFz = sum(exp(-wXYsq*qz.^2*wSq/4 ));
+kernFz = exp(-wXYsq*Qz.^2*(wSq-1)/4 )/normFz; 
+
+%zero-pad S.fq above first zero
+S.fq(min(find(S.fq <0)):size(S.fq)) =0;
+S.fq_int(min(find(S.fq_int <0)):size(S.fq_int)) =0;
+ 
+%for i=1:10,
+    dGq2Dto3D = interp1( q, S.fq, Qvec(:));
+    dGq2Dto3D = reshape(dGq2Dto3D, size(Qvec));
+    dGq = S.fq  - sum(dGq2Dto3D.*kernFz)';
+   S.fq_cor = S.fq + dGq;  
+%end;
+
+S.Sq_cor = S.fq_cor.*exp(wXYsq*q.^2/4); 
+loglog(q, [S.Sq S.Sq_cor]);
+figure(gcf)
+pause;
+
+    dGq2Dto3D = interp1( q, S.fq_int, Qvec(:));
+    dGq2Dto3D = reshape(dGq2Dto3D, size(Qvec));
+    dGq = S.fq_int  - sum(dGq2Dto3D.*kernFz)';
+   S.fq_int_cor = S.fq_int + dGq;  
+ 
+S.Sq_int_cor = S.fq_int_cor.*exp(wXYsq*q.^2/4); 
+loglog(q, [S.Sq_int S.Sq_int_cor]);
+figure(gcf)
+
+
+%% 19) Estimating error of Fourier transform
+%Corrected(find(isnan(Corrected)))
+S.fq_allfunc =[];
+jp=find((S.vt_um > S.r(1)) &(S.vt_um < S.r(512)));
+jp1 = min(jp)-1;
+jp2= max(jp)+1;
+jp= jp1:jp2;
+for i=1:size(S.NormCorrFuncGood, 2),
+    i
+    Corrected = S.NormCorrFuncGood(jp, i);
+ %   Corrected = (Corrected./St.Normalized(jp)).^(1./St.Normalized(jp));
+ %   remove extra correction
+    Y.fr = exp(interp1(S.vt_um(jp).^2, log(Corrected), S.r.^2, 'linear'));
+    Y.fr = real(Y.fr);
+    Y.fr(find(Y.fr< 0)) = 0;
+    FY = FourierTransform(Y, '2D');
+    S.fq_allfunc(:, i) = FY.fq;
+end;
+
+meanFq =  mean(S.fq_allfunc.*repmat(S.G0_good, size( S.fq_allfunc, 1), 1), 2)./mean(repmat(S.G0_good, size( S.fq_allfunc, 1), 1), 2);
+meanSqFq =  mean(S.fq_allfunc.^2.*repmat(S.G0_good, size( S.fq_allfunc, 1), 1), 2)./mean(repmat(S.G0_good, size( S.fq_allfunc, 1), 1), 2);
+S.errorFq = sqrt(meanSqFq - meanFq.^2)/sqrt(length(S.G0_good));
+loglogErBar(S.q, S.fq, S.errorFq);
+figure(gcf);
+S.errorSq = S.errorFq.*exp(wXYsq*q.^2/4); 
+

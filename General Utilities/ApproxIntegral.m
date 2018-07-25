@@ -1,0 +1,107 @@
+function [I, X, F] = ApproxIntegral(x, f, varargin)
+% the values of function f are known at points x (not necessarily equally spaced)
+% finds the approximate value of integral of f over x.
+
+% Parameters come in pairs
+% 'Interpolate'  -----   {Npoints, 'methodString' leftExtrap/optional rightExtrap/optional}: 
+%       Npoints a number of points to add per dx interval; 
+%       'methodString' describes the method of interpolation (the axes in which the function behaves approximately linearly)
+%       e.g. for Gaussian-like function   'methodString' should be 'F = exp(interp1(x.^2, log(f), X.^2));'
+%       the method string may include 'extrap' statement for extrapolation (see help interp1),
+%       e.g. 'F = exp(interp1(x.^2, log(f), X.^2), 'linear', 'extrap');'
+%      then the extrapolation vectors X  on the left: leftExtrap and on the
+%      right rightExtrap should be added.
+%       if one of these ranges is not used then place brackets [], e.g. 
+%                   [I, X, F] = ApproxIntegral(x, f,  'Interpolate', {10   'F = exp(interp1(x.^2, log(f), X.^2, ''linear'', ''extrap''));' []  (1:100)})
+
+%  'Fourier1D'  --------------  q -vector
+% 'Fourier2D' ---------------   q -vector
+% 'Fourier3D' -------------------- q -vector
+
+
+%approximate trapezoid method; x- nonevenly spaced
+sizef=size(f);
+f=f(:);
+x=x(:);
+
+j1=find(strcmp(varargin, 'Interpolate'));
+if length(j1)>1,
+    error('Too many Interpolate inputs!')
+elseif length(j1)==1,
+    param = varargin{j1+1};
+    Npoints = param{1};
+    methodString = param{2};
+    
+    len = length(x);
+    x1 = [x(1:(len -1)) x(2:len)];
+    dx = (x1(:, 2) - x1(:, 1))/Npoints; 
+    x2 = (x1(:, 1)*ones(1, Npoints)+dx*(0:(Npoints-1)))';
+    X = x2(:);
+    
+    if strfind(methodString, 'extrap'),
+        leftExtrap = param{3};
+        rightExtrap = param{4};
+        X = [leftExtrap(:); X; rightExtrap(:)];
+    end;
+    
+    eval([ methodString ';']);
+    
+    k = find(isnan(F));
+    if length(k) > 0,
+        warning('NaNs in F: deleting them');
+        F(k) = [];
+        X(k) = [];
+    end;
+    
+else %default: no interpolation
+    X = x;
+    F = f;   
+end;
+
+F1 = F; %default: no Fourier;
+
+j1=find(strcmp(varargin, 'Fourier1D'));
+if length(j1)>1,
+    error('Too many Fourier inputs!')
+elseif length(j1)==1,
+    q = varargin{j1+1};
+    q = q(:)';
+    
+    i = sqrt(-1);
+    F1 = repmat(F, 1, length(q)).*exp(i*X*q)/sqrt(2*pi);
+end;
+
+j1=find(strcmp(varargin, 'Fourier2D'));
+if length(j1)>1,
+    error('Too many Fourier inputs!')
+elseif length(j1)==1,
+    q = varargin{j1+1};
+    q = q(:)';
+    
+    i = sqrt(-1);
+    F1 = repmat(F.*X, 1, length(q)).*besselj(0, X*q);
+end;
+
+j1=find(strcmp(varargin, 'Fourier3D'));
+if length(j1)>1,
+    error('Too many Fourier inputs!')
+elseif length(j1)==1,
+    q = varargin{j1+1};
+    q = q(:)';
+    
+    i = sqrt(-1);
+    F1 = ((F.*X)*(1./q)).*sin(X*q) * sqrt(2/pi);
+    
+    k = find(q==0);
+    if length(k) ~=0,
+        F1(:, k) = (F.*X.^2) * sqrt(2/pi);
+    end;
+end;
+
+len = size(F1, 1);
+F1 = F1(1:(len-1), :) + diff(F1)/2;
+I = F1' * diff(X);
+
+%I= sum(mean([F(1:(len-1)) F(2:len)], 2).*diff(X));
+%if sizef(1)==1, I=I'; end;
+

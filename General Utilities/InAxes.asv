@@ -1,0 +1,18 @@
+function [J, varargout] =InAxes(varargin)
+% find indexes of plot points which are inside axes rectangle
+% by default works on the current axes, otherwise give an axes handle
+
+if length(varargin) > 1,
+    error('just one or no arguments required!');
+elseif length(varargin) == 1,
+    hAx = varargin{1};
+else
+    hAx = gca;
+end;
+
+h = get(hAx, 'Children');
+
+Xlim = get(hAx, 'XLim');
+Ylim = get(hAx, 'YLim');
+
+X = get(h(1), 'XData'

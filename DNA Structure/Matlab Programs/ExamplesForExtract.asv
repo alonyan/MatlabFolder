@@ -1,0 +1,7 @@
+function Y = ProbabilityOfDisplacements(r, s, L_p)
+
+s_Sqr = s.^2;
+
+Above_L_p = (3/(4*pi*s*L_p))^(3/2)*exp(-(3*r*2)/(4*s*L_p)-s^2/(2*s_Sqr))
+
+Y = (1/sqrt(2*pi*s_Sqr)) * ((1/(4*pi*r.^2))*exp(-r.^2/(2*s_Sqr)) + (3/4/pi/s/L_p)^(3/2)*exp(-(3*r*2)/(4*s*L_p)-s^2/2/s_Sqr));

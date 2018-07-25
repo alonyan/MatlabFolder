@@ -1,0 +1,240 @@
+a {
+    color:#000099;
+}
+
+a:visited {
+    color:#840084;
+}
+
+a:active {
+    color:#000099;
+}
+
+a:hover {
+    color:#000033;
+}
+
+hr {
+    border-style: solid;
+    border-width: 1px 0px 0px 0px;
+    height: 1px;
+    width: 100%;
+    color: #000000;
+}
+
+p {
+    margin-left: 5px;
+}
+
+td {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 12px;
+}
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+
+.secTitle {
+    color:#000000;
+    text-transform:capitalize;
+    font-size:24px;
+    font-weight:bold;
+    padding:12px 0px 10px 0px; /*top, bottom, left, and right*/
+    margin:10px 0px 0px 5px;
+    vertical-align: middle;
+}
+
+.title {
+    color:#990000;
+    font-size:16px;
+    padding:2px 0px 2px 0px;
+    margin:10px 0px 0px 5px;
+    vertical-align: middle;
+    font-weight:bold;
+}
+
+.property {
+    font-weight:bold;
+    color: #222;
+}
+
+.sectiontitle {
+    color:#990000;
+    font-size:16px;
+    font-weight: bold;
+    width:100%;
+    padding:2px 0px 2px 5px;
+    margin: 15px 0px 0px 0px;
+}
+
+.headertitle {
+    font-weight:bold;
+    padding: 3px 5px 3px 5px;
+}
+
+.helptopic {
+    font-weight:bold;
+    color:#990000;
+}
+
+.helptext {
+    margin-left: 5px;
+    font-family: monospace; 
+    white-space: pre;
+    font-size: 13px;
+}
+
+.subheader {
+    background-color: #E7EBF7;
+    width: 100%;
+}
+
+.subheader-left {
+    padding: 3px 5px 3px 5px;
+}
+
+.subheader-right {
+    text-align: right;
+    padding: 3px 5px 3px 5px;
+}
+
+.footerlinktitle {
+    margin: 15px 0px 0px 5px;
+    color:#990000;
+    font-size: 16px;
+}
+
+.footerlink {
+    padding: 3px 5px 3px 15px;
+}
+
+.topiclinks {
+    margin: 5px 0px 0px 5px;
+}
+
+a.topiclink {
+    padding-right: 10px;
+}
+
+.class-details {
+    border-width: 0px 0px 0px 0px;
+    margin: 0px 0px 0px 5px;
+}
+
+.class-detail-label {
+    font-weight: bold;
+    padding: 0px 10px 0px 0px;
+    spacing: 0px 0px 0px 0px;
+}
+
+.summary-list .m-help {
+    white-space: nowrap;
+}
+
+.summary-list {
+    margin: 0px 15px 0px 15px;
+}
+
+.summary-list .summary-item .name  {
+    border-width: 0px 0px 1px 0px;
+    border-style: solid;
+    border-color:#E7EBF7;
+    padding: 2px 15px 2px 5px;
+}
+
+.summary-list .summary-item .m-help {
+    border-width: 0px 0px 1px 0px;
+    border-style: solid;
+    border-color:#E7EBF7;
+    padding: 2px 5px 2px 5px;
+    width: 95%;
+    white-space: normal;
+}
+
+.summary-list .summary-item .attributes {
+    border-width: 0px 0px 1px 0px;
+    border-style: solid;
+    border-color:#E7EBF7;
+    padding: 2px 15px 2px 5px;
+    white-space: nowrap;
+}
+
+
+
+
+
+
+
+
+
+
+
+body {
+      background: #f4f4f4;
+    }
+    .interface {
+      /*font-family: "Lucida Grande", "Lucida Sans Unicode", Helvetica, Arial, sans-serif !important;*/
+      font-family:"monospace"!important;
+    }
+    div#sidebar {
+      background: #fff;
+      position: fixed;
+      top: 60px; left: 0; bottom: 0;
+      width: 240px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 15px 0 30px 30px;
+      border-right: 1px solid #bbb;
+      box-shadow: 0 0 20px #ccc; -webkit-box-shadow: 0 0 20px #ccc; -moz-box-shadow: 0 0 20px #ccc;
+    }
+      a.toc_title, a.toc_title:visited {
+        display: block;
+        color: black;
+        font-weight: bold;
+        margin-top: 15px;
+        text-decoration: none;
+        text-transform:capitalize;
+        font-family: Helvetica Neue, Helvetica, Arial;
+        font-size:18px;
+      }
+        a.toc_title:hover {
+          text-decoration: none;
+        }
+        #sidebar .version {
+          font-size: 10px;
+          font-weight: normal;
+        }
+      ul.toc_section {
+        font-size: 10px;
+        line-height: 14px;
+        margin: 5px 0 0 0;
+        padding-left: 0px;
+        list-style-type: none;
+        font-family: "monospace";
+      }
+        .toc_section li {
+          cursor: pointer;
+          margin: 0 0 3px 0; 
+        }
+          .toc_section li a {
+            text-decoration: none;
+            color: black;
+            /*color:#990000;*/
+          }
+            .toc_section li a:hover {
+              /*text-decoration: underline;*/
+              color:#990000;
+            }
+    div.container {
+      
+      line-height: 22px;
+      position: relative;
+      width: 560px;
+      margin: 40px 0 50px 300px;
+      z-index:-1;
+    }

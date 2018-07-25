@@ -1,0 +1,251 @@
+%% Loading Scanning Data
+filepath = 'C:\Oleg\MyPapers\DNA semidilute\Data\311207\';
+% list directory
+fnameTemplate = 'Ball_____V';
+files = dir([filepath '\' fnameTemplate '*']);
+for i = 1:length(files),
+     [a, count,ERRMSG] = sscanf(files(i).name, [fnameTemplate '%d']);
+     if count == 1,
+         vel(i) = a;
+     elseif count == 0,
+         vel(i) = 0;
+     end;
+end;
+[temp, I] = sort(vel);
+fnames = {files(I).name}'
+
+%% What are we loading?
+filenames = {'Ball_____V__94_9'};
+Rejection = 2;
+NormRange = [1e-3 3e-3];
+S = LoadMultipleCorrFunc_v2(filepath, filenames, 'Rejection', Rejection, 'NormalizationRange', NormRange,  'DeleteList', []);
+%% Cluster analysis
+Nclust = 20;
+LinkageType ='single'% 'single', 'average', 'weighted'
+Range = [0.1 50]; % range of decay of the correlation function
+[T, j, DeleteList] = ClusterizeCF_CR_v1(S, 'No of Clusters', Nclust, 'Normalization range', [1e-3 5e-3], 'Distance range', Range, 'Linkage', LinkageType);
+
+%% Reload if needed
+Rejection = 10;
+ S = LoadMultipleCorrFunc_v2(filepath, filenames, 'Rejection', Rejection, 'DeleteList', DeleteList);
+ 
+%% Plot Speed
+plot(S.t_v, S.v_um_s)
+
+%% Find range for baseline subtraction
+semilogx(S.lag, S. Normalized);
+title('find range for baseline subtraction');
+pause;
+S.rangeBL = InAxes;
+S.Normalized = (S.Normalized - mean(S.Normalized(InAxes)))/(1 - mean(S.Normalized(InAxes)));
+semilogx(S.lag, S. Normalized);
+
+
+title('find plateau for normalization');
+pause;
+S.rangeNorm = InAxes;
+S.Normalized = S.Normalized /mean(S.Normalized(InAxes));
+S.G0 = mean(S.AverageCF_CR(S.rangeNorm)) - mean(S.AverageCF_CR(S.rangeBL));
+semilogx(S.lag, S. Normalized);
+
+%% remove fields which are not needed for futher processing
+fields_to_remove = {
+    'corrfunc' 
+    'AfterPulseCalculated'
+    'trace'
+    'CR'
+    'CF_CR'
+    'dIdI'
+    'corrfuncgood'
+    'tracegood'
+    'CF_CRgood'
+    'dIdIgood'
+    'corrfuncbad'
+    'tracebad'
+    'CF_CRbad'
+    'dIdIbad'
+     'AveragedIdI'
+    'AverageAlldIdI'
+     'errordIdI'
+    'errorAlldIdI'
+    'WeightAverageCF'
+    'WeightAverageAllCF'
+    'errorWA_CF'
+    'errorAllWA_CF'
+    'score'
+    'AfterPulse'
+    'Xcoord'
+    'Ycoord'
+    'Zcoord'
+     'v_um_s'
+    't_v'
+    };
+S = rmfield(S, fields_to_remove)
+%% Create Data Structure
+Ball_v94 = S;
+
+%% Extract displacement for zero speed
+RhFileNames = {'Rh6G'};
+NormRange = [1e-3 2e-3] ;%[5.5e-3 11e-3];
+Rh6G = LoadMultipleCorrFunc_v2(filepath, RhFileNames, 'Rejection', 2, 'NormalizationRange', NormRange,  'DeleteList', []);
+S_ext = ExtractWithoutNoiseStructures_v3_1(S,  [], 'Average', NormRange, 'Rh6G calibration',  {Rh6G Rh6G 30000 0.002 'All'}, 'Create Model', {'diff3D'}, 'UseCorrelationOfType', 'Normalized')
+
+%% List data structure names
+clear B;
+%filename = 'L48_sd1_260807'
+nameTemplate = 'Ball_v';
+clear vel;
+%strucNames = who( '-file', filename, [nameTemplate '*']);
+strucNames = who([nameTemplate '*']);
+for i = 1:length(strucNames),
+    vel(i) = sscanf(strucNames{i}, [nameTemplate '%d']);
+end;
+[temp, I] = sort(vel);
+
+strucNames = strucNames(I) %check the strucNames and delete/add!!!! 
+
+%% Construct combined array
+ arrayName = input('What is the name of the combined array?','s') 
+%J=1:minLength;
+ 
+for i=1:length(strucNames),
+    eval(['A=' strucNames{i}  ';']);
+
+   if i ==1,
+       minLength = length(A.lag);
+       B.lag = A.lag;
+       B.AverageCF_CR = A.AverageCF_CR;
+       B.errorCF_CR = A.errorCF_CR;
+       B.vt_um = A.vt_um;
+   else
+       if length(A.lag) < minLength,
+           minLength = length(A.lag);
+       end;
+       J=1:minLength;
+        B.AverageCF_CR =  [B.AverageCF_CR(J, :) A.AverageCF_CR(J)];
+       B.errorCF_CR = [B.errorCF_CR(J, :) A.errorCF_CR(J)];
+       B.vt_um = [B.vt_um(J, :) A.vt_um(J)];
+   end;
+    eval([arrayName '= B;']);
+end;
+
+semilogx(B.lag, B.AverageCF_CR);
+%figure(h)
+
+%% Normalization
+%range of lags for plateau normalization
+range = [1e-3 5e-3];
+
+plateau_indexes = find((B.lag>range(1))&(B.lag < range(2)));
+
+%find range of vt_us for baseline subtraction
+semilogx(B.vt_um, B.AverageCF_CR);
+title('find the range to remove baseline and hit any key then')
+pause;
+v = axis;
+
+for i=1:size(B.vt_um, 2),
+    baseline_indexes= find((B.vt_um(:, i)>v(1))&(B.vt_um(:, i) < v(2)));
+    
+    %take weighted average
+     G0=sum(B.AverageCF_CR(plateau_indexes, i)./B.errorCF_CR(plateau_indexes, i).^2)/sum(B.errorCF_CR(plateau_indexes, i).^(-2));
+    if ~isreal(G0),
+        'not real G0'
+        G0=mean(B.AverageCF_CR(plateau_indexes, i)), 
+    end;
+    
+    if vel(i) ~=0,
+        baseline=sum(B.AverageCF_CR(baseline_indexes, i)./B.errorCF_CR(baseline_indexes, i).^2)/sum(B.errorCF_CR(baseline_indexes, i).^(-2));
+        if ~isreal(baseline),
+            'not real baseline'
+         baseline =mean(B.AverageCF_CR(baseline_indexes, i)), 
+        end;
+    else
+        baseline = 0;
+    end;
+    
+    B.Normalized(:, i) = (B.AverageCF_CR(:, i) - baseline)/(G0 - baseline);
+    B.errorNormalized(:, i) = B.errorCF_CR(:, i)/(G0 - baseline);
+end;
+semilogx(B.lag, B.Normalized);
+eval([arrayName '= B;']);
+    
+%% Possible another normalization to bring the curves together
+range = [200e-3 500e-3];
+
+plateau_indexes = find((B.lag>range(1))&(B.lag < range(2)));
+
+G0=sum(B.Normalized(plateau_indexes, :)./B.errorNormalized(plateau_indexes, :).^2)./sum(B.errorNormalized(plateau_indexes, :).^(-2));
+
+ B.ReNormalized = B.Normalized./repmat(G0, minLength, 1)*mean(G0);
+ B.errorReNormalized = B.errorNormalized ./repmat(G0, minLength, 1)*mean(G0);
+
+semilogx(B.lag, B.ReNormalized);
+eval([arrayName '= B;']);
+
+%% Assume distributions Gaussian and Fit with Gaussian
+arrayName = input('What is the name of the combined array?','s') 
+eval(['B=' arrayName ';']);
+calc_range=[0.05 20];
+if ~isfield(B, 'ReNormalized'),
+    B.ReNormalized =B.Normalized;
+    B.errorReNormalized = B.errorNormalized;
+end;
+
+j=find((B.lag>calc_range(1))&(B.lag < calc_range(2)));
+length(j)
+for i=j(1):j(length(j)),
+    i
+    j2 = find(B.ReNormalized(i, :)>4e-2);
+    semilogyErBar(B.vt_um(i, j2).^2, B.ReNormalized(i, j2), B.errorReNormalized(i, j2),  'o') ;
+    pause;
+    v= axis;
+    j1 = find((B.vt_um(i, :).^2>v(1))&(B.vt_um(i, :).^2 < v(2)));
+    
+    pGauss(i, :) = polyfit(B.vt_um(i, j1).^2, log(B.ReNormalized(i, j1)), 1);
+    [BETA, delta, resid] =nlinfitWeight1(B.vt_um(i, j1), B.ReNormalized(i, j1), @Gaussian, [exp(pGauss(i, 2)) (-pGauss(i,1)).^(-1/2)], B.errorReNormalized(i, j1)');
+    beta(i, :) = BETA';
+    
+    semilogy(B.vt_um(i, :).^2, B.ReNormalized(i, :),  'o', B.vt_um(i, :).^2, exp(polyval(pGauss(i, :), B.vt_um(i, :).^2)),  B.vt_um(i, :).^2, Gaussian(BETA, B.vt_um(i, :))) ;
+    axis(v)
+    pause;
+end;
+B.pGauss = pGauss;
+B.betaGauss = beta;
+eval([arrayName '= B;']);
+clear pGauss beta;
+
+%% Evaluate excitation-detection field
+fast = size(B.vt_um, 2) - 10;
+slow = 1;
+
+j = 1:200;
+%j = find((B.vt_um(:, fast)>0.0447) & (L48_v900.B.vt_um(:, fast)<sqrt(0.3)));
+
+field.r = B.vt_um(j, fast);
+
+field.G = (B.ReNormalized(j, fast)./B.ReNormalized(j, slow)).^(1./B.ReNormalized(j, slow));
+%field.G = (B.Normalized(j, fast)./B.Normalized(j, slow)).^(1./B.Normalized(j, slow));
+%field.G = (B.Normalized(j, fast)./L48_dilute_3107_1_2_bis.Normalized(j, slow)).^(1./L48_dilute_3107_1_2_bis.Normalized(j, slow));
+field.errorG =B.errorNormalized(j, fast);
+semilogy(field.r.^2, field.G) ;
+axis([0 1.5 1e-2 1.2]);
+pause;
+v = axis;
+j3 = find((field.r.^2> v(1)) & (field.r.^2<v(2)));
+
+
+[BETA, delta, resid] =nlinfitWeight1(field.r(j3), field.G(j3), @Gaussian, [1 0.2], field.errorG(j3));
+field.paramGauss = BETA;
+semilogy(field.r.^2, field.G, field.r.^2, Gaussian(BETA, field.r)) ;
+axis(v);
+
+B.field = field;
+eval([arrayName '= B;']);
+%% Evaluate displacements from the gaussian slopes
+%eval(['B=' arrayName ';']);
+B.hSq_weighted = ((B.betaGauss(:, 2)/B.field.paramGauss(2)).^2-1) *3/2;
+B.hSq_unweighted = (- 1/B.field.paramGauss(2)^2./B.pGauss(:, 1)-1) *3/2;
+B.lagHsq = B.lag(1:length(B.hSq_weighted));
+loglog(B.lagHsq, B.hSq_unweighted,'o', B.lagHsq, B.hSq_weighted, 'o', B.lag, B.lag.^(1/2))
+eval([arrayName '= B;']);

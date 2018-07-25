@@ -1,0 +1,177 @@
+fpath = 'D:\Oleg\Experiments\MSKCC\20110713_AutoParaCrine'
+cd  'D:\Oleg\Matlab Programming\FACSanalysis_061011'
+
+options.tol_exp_FIDA = 1e-3;
+options.rhomaxfactor = 12;
+options.Nrhopt = 200;
+options.range_q = 3;
+options.Nqpt = 20;
+
+options.r0_in_cell_dia = 3;
+options.secretion.do = true;
+options.secretion.sig = 0.92; %  std in lognormal coordinates of secretion rate distribution 
+
+options.capture.do = true;
+options.capture.sig = 0.1766; %  std in lognormal coordinates of capture antibody distribution 
+
+options.BG.do = true;
+options.BG.sig = 0.2014;  %  std of the normal distribution of background rescaled with Linear Range
+options.BG.mean = 0.1484; % a
+%%
+load([fpath filesep 'process20110713_ParaCrine.mat'], 'proc_TACclusters_TAC')
+I =1;
+J = find((proc_TACclusters_TAC.PE.X < 4.5));
+H = proc_TACclusters_TAC.PE.H(J, I);
+X = proc_TACclusters_TAC.PE.X(J);
+
+%% Play a bit with parameters beta0 - [Qtag rho0] to get in the range
+beta0 = [5.0500    2.54];
+[P, Plin, B, I] = ScreenedFieldToDistributionFIDA(beta0, X, options);
+plot(X, H,'o',  X, P); figure(gcf);
+
+%%
+ sum(Plin.*B)/sum(Plin)
+ kd = beta0(2)/options.r0_in_cell_dia;
+ 3*beta0(1)/beta0(2)^3*exp(-kd)*(1+kd)*exp(options.secretion.sig.^2/2 )
+ 
+ 
+
+%% 
+I=2;
+plot(proc_TACclusters_TAC.PE.X, proc_TACclusters_TAC.PE.H(:, I), 'o'); figure(gcf);
+
+%%
+J = find((proc_TACclusters_TAC.PE.X < 4.5)); 
+
+%%
+H = proc_TACclusters_TAC.PE.H(J, I);
+X = proc_TACclusters_TAC.PE.X(J);
+
+options.r0_in_cell_dia = proc_TACclusters_TAC.PE.r0_in_cell_dia(I);
+options.data.mean = proc_TACclusters_TAC.PE.meanD(I)/proc_TACclusters_TAC.PE.LinearRange;
+cellNo = proc_TACclusters_TAC.PE.cellNo(I);
+beta0 =  2.7;
+[P, Plin, B] = ScreenedFieldToDistributionFIDAfast(beta0, X, options);
+
+%%
+clear P ChiSq;
+rho0 =2.64:0.01:2.68
+for i=1:length(rho0),
+    [i length(rho0)]
+    P(:, i) = ScreenedFieldToDistributionFIDAfast(rho0(i), X, options);
+    ChiSq(i) = sum( (P(:, i) - H).^2*cellNo^2./(H*cellNo +1))
+end;
+plot(rho0, ChiSq); figure(gcf)
+%%
+plot(X, H,'o',  X, P); figure(gcf);
+
+%% Compare to previous results
+Pold = ScreenedFieldToDistributionFIDA([2.5 2.7], X, options);
+ChiSqOld = sum( (Pold - H).^2*cellNo^2./(H*cellNo +1))
+
+
+%%  The example of  use:
+
+dataname = 'proc_TACclusters_TAC.PE';
+data = eval(dataname);
+I = 3; % data index in the experiment
+
+H = eval([dataname '.H(:, I)']);
+X = eval([dataname '.X']);
+% find non-zero range and add a few points for a good measure
+J = 1:(max(find(H>0)) +5);
+X = X(J);
+H = H(J);
+subplot(1, 1, 1); semilogy(X, H, 'o');
+title('No need to do anaything. If you are happy with this range just hit any key.');
+figure(gcf);
+pause;
+
+options.r0_in_cell_dia = data.r0_in_cell_dia(I);
+options.data.mean = data.meanD(I)/data.LinearRange;
+cellNo = data.cellNo(I);
+
+% start fitting procedure: the ChiSq seem to change smoothly with rho0 (which is our only fitting parameter now)
+% so the procedure can be fully automated by removing all of the pauses
+% below. Just for a start, I am trying to be careful. 
+% I am also calculating by 5 approximation points so far, while 3 would
+% seem to suffice.
+Nappnts = 5;
+drho0 = 0.05;
+eps_rho0 = 0.01;
+rho0 = 2.6;
+
+% finding the range with  min of ChiSq
+minFound = false;
+rho0_vect = rho0 + ((1:Nappnts) - (Nappnts + 1)/2)*drho0;
+clear ChiSq ChiSq_trace rho0_trace;
+% first run
+for i=1:length(rho0_vect),
+    i
+    P = ScreenedFieldToDistributionFIDAfast(rho0_vect(i), X, options);
+    ChiSq(i) = sum( (P - H).^2*cellNo^2./(H*cellNo +1))
+end;
+%plot(rho0_vect, ChiSq); figure(gcf)
+%pause;
+rho0_trace = rho0_vect;
+ChiSq_trace = ChiSq;
+
+while ~minFound,
+    [ChiSq_trace_min, min_ind] = min(ChiSq);
+    rho0_min = rho0_vect(min_ind);
+    if min_ind < ((Nappnts + 1)/2), 
+        rho0_vect(Nappnts) = rho0_vect(1) - drho0;
+        rho0_vect = circshift(rho0_vect, [0 1]);
+        ChiSq = circshift(ChiSq, [0 1]);
+        P = ScreenedFieldToDistributionFIDAfast(rho0_vect(1), X, options);
+        ChiSq(1) = sum( (P - H).^2*cellNo^2./(H*cellNo +1));
+        rho0_trace = [rho0_vect(1) rho0_trace];
+        ChiSq_trace = [ChiSq(1) ChiSq_trace];
+    elseif min_ind > ((Nappnts + 1)/2), 
+        rho0_vect(1) = rho0_vect(Nappnts) + drho0;
+        rho0_vect = circshift(rho0_vect, [0 -1]);
+        ChiSq = circshift(ChiSq, [0 -1]);
+        P = ScreenedFieldToDistributionFIDAfast(rho0_vect(Nappnts), X, options);
+        ChiSq(Nappnts) = sum( (P - H).^2*cellNo^2./(H*cellNo +1));
+        rho0_trace = [rho0_trace rho0_vect(Nappnts)];
+        ChiSq_trace = [ChiSq_trace ChiSq(Nappnts)];
+    else minFound = true
+    end;
+end;
+
+plot(rho0_trace, ChiSq_trace, '-o'); figure(gcf)
+
+
+%% Now zooming in till we get the desired precision
+while ((drho0/rho0_min) > eps_rho0),
+    clear ChiSq;
+    drho0 = drho0/2
+    rho0_vect= rho0_min + ((1:Nappnts) - (Nappnts + 1)/2)*drho0;
+    rho0_vect = setdiff(rho0_vect, rho0_trace);
+    for i=1:length(rho0_vect),
+        i
+        P = ScreenedFieldToDistributionFIDAfast(rho0_vect(i), X, options);
+        ChiSq(i) = sum( (P - H).^2*cellNo^2./(H*cellNo +1));
+    end;
+    rho0_trace = [rho0_trace rho0_vect];
+    ChiSq_trace = [ChiSq_trace ChiSq];
+    [rho0_trace Isort] = sort(rho0_trace);
+    ChiSq_trace = ChiSq_trace(Isort);
+    [ChiSq_trace_min, min_ind] = min(ChiSq_trace);
+    rho0_min = rho0_trace(min_ind);
+end;
+
+P = ScreenedFieldToDistributionFIDAfast(rho0_min, X, options);
+subplot(1, 2, 1); plot(rho0_trace, ChiSq_trace, '-o', rho0_min,  ChiSq_trace_min, 'ro'); ; xlabel('rho0'); ylabel('ChiSq')
+subplot(1, 2, 2); semilogy(data.X, data.H(:, I), 'o', X, P);
+figure(gcf);
+
+data.rho0(I) = rho0_min;
+data.ChiSq(I) =  ChiSq_trace_min;
+data.modelProb(I) = gammainc((length(X)-1)/2,  ChiSq_trace_min/2)
+eval([dataname '= data;']);
+
+
+%% 
+Pold  = ScreenedFieldToDistributionFIDA([2.50 2.40], X, options);
+ChiSqOld = 

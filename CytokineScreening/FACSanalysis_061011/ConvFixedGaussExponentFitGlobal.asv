@@ -1,0 +1,6 @@
+function y = ConvFixedGaussExponentFitGlobal(beta, x)
+pos = beta(1); % center of the Gaussian
+sig = beta(2);  % its std
+
+[alpha, X] = meshgrid(beta)
+y = ampl*erfc( - (x - alpha*sig^2)/sig/sqrt(2) ).*exp( - alpha*x); %*exp(alpha^2*sig^2/2)

@@ -1,0 +1,25 @@
+function A=OpenAndSaveLVimage(varargin)  %(path, filename)
+path = varargin{1};
+filename=varargin{2};
+fullFileName = strcat(path, filename)
+
+fullFileName = 'G:\Ilan\Experiments\200809\his_mind_noatp_14_fit_outside.fig'
+ 
+% Load
+A=load(strcat (fullFileName,'.mat'));
+
+% File Name Structure
+fname = [fullFileName '_' A.ScanParam.ScanType '.jpg'];
+slashpos=strfind(fname,'\');
+dotpos=strfind(fname,'.');
+title_name= fname((slashpos(3)+1):(dotpos-1));
+
+% plot 
+[Pict1, Norm1, Pict2, Norm2, LineScaleV, Counts1] = ReconstructImage_v4(A.AI, A.Cnt, 1, A.ScanParam);
+Pict = (Pict1+Pict2)./(Norm1+ Norm2);
+figure;set(gcf,'units', 'normalized','Position' ,[0.1 0.1 0.8 0.8]) %Ilan changes: figure 1 almost full screen 
+colormap('gray') ;imagesc(Pict, [min(Pict(:))-1, max(Pict(:))/10]); axis image; title(title_name)
+
+%save pic
+print(gcf, '-djpeg90', '-r70', fname);
+end

@@ -1,0 +1,1 @@
+function f=GaussianFit(beta, x)ampl=beta(1);pos=beta(2);sig=beta(3);f=ampl*exp(-((x-pos)/sig).^2/2);%f=ampl*exp(-(x/beta2).^2);

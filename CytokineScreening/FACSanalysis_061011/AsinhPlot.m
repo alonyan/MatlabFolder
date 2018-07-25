@@ -1,0 +1,55 @@
+function h = AsinhPlot(data, TagX, TagY)
+
+LRdef = 100; % default value of linear range
+xInd = [];
+yInd = [];
+temp  = (strfind(data.ListofChannelsWithLabels, TagX));
+for i=1:length(temp),
+    if ~isempty(temp{i}),
+        if isempty(xInd),
+            xInd = i
+        else
+            errordlg('More than on xInd found!');
+        end;
+    end;
+end;
+
+temp = (strfind(data.ListofChannelsWithLabels, TagY));
+for i=1:length(temp),
+    if ~isempty(temp{i}),
+        if isempty(yInd),
+            yInd = i
+        else
+            errordlg('More than on yInd found!');
+        end;
+    end;
+end;
+            
+if ~isempty(xInd), % find linear range from 5% of negative outliers
+     Xdata = data.data(:, xInd);           
+     Xneg = Xdata(Xdata < 0);
+     if isempty(Xneg),
+         LRx = LRdef;
+     else
+        Xneg = sort(Xneg, 'ascend');
+        LRx = abs(Xneg(ceil(length(Xneg)*0.05)));
+     end;
+     clear Xneg;
+end;
+            
+if ~isempty(yInd), % find linear range from 5% of negative outliers
+     Ydata = data.data(:, yInd);
+     Yneg = Ydata(Ydata < 0);
+     if isempty(Yneg),
+         LRy = LRdef;
+     else
+        Yneg = sort(Yneg, 'ascend');                
+        LRy = abs(Yneg(ceil(length(Yneg)*0.05)));
+     end;                    
+     clear Yneg;
+end;
+            
+ h = plot(asinh(Xdata/LRx), asinh(Ydata/LRy), '.');
+ xlabel(TagX);
+ ylabel(TagY);
+ figure(gcf)

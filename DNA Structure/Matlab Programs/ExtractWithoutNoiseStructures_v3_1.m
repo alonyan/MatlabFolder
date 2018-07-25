@@ -1,0 +1,339 @@
+function y = ExtractWithoutNoiseStructures_v3_1(L, N, FitType, range, varargin)
+
+%New version of ExtractWithoutNoiseStructures. Created on 05.11.05.
+% v2 - modified on 13.04.06. Added choice of fit, 'TripletFit', 'Average' or 'Fixed' (for given numbers; 
+% just plug in numbers [G0 G0all] for range variable) for
+% plateau level determination
+%In general, processes data from PhotonTrace program: substracts noise from the correlation functions and 
+%calculates displacements according to different models.
+%
+%L, N are correlation structures for total signal and noise respectively and have to be provided.
+%
+%Optional parameters come in pairs: first in a pair is descriptive string
+%and the second is the parameter itself.
+%
+%Parameter pairs:
+%string --------- parameter
+%'Sampling Volume' ------------ [wXYsq wSq]
+%'Rh6G calibration'------------ {Rh1corrStruct Rh2corrStruct beta fitStart/optional WhatToFit/optional}
+%-----------------------------------Rh1-------------Rh2-------estimate of Rh amplitude---where to start Rh fitting/default 0.01ms
+% modification on 25.04.06 ---------------------------------------------------WhatToFit-- is
+%either 'All' (default) for PlotFitCFAll procedure or 'Selection' for PlotFitCF
+%
+%---------
+%'Use Model' ------------------ {model range} ----model structure: model.hSq, model.G, range to find plateau by averaging
+%'Create Model' ----------------{modelName, additionalParam}
+%'Remove Oscillating Noise'-----{type, additionalParam} additional parameter is [amplitude period]
+%
+% Modifications on 19.04.06
+% - taking care of dIdI fields
+% Add pair:
+% 'UseCorrelationOfType' --------- 'CF_CR'(default) or 'dIdI'
+%
+% Modifications on 04.06.06 - version 3
+% added possibility to extract longitudinal displacement
+% 'Create Model'  option {'Parallel-Perpendicular', DisplacementStruc},
+% where DisplacementStruc contains two fields: '.lag', '.hSq' 
+
+
+
+if ~isstruct(N),
+    N.countrate = 0;
+    N.AverageAllCF_CR = zeros(size(L.AverageAllCF_CR));
+    N.lag =L.lag;
+end;
+
+LwoNoise=L;
+LwoNoise.countrate = L.countrate-N.countrate;
+LwoNoise.countrateGood = L.countrateGood-N.countrate;
+
+if ~isfield(N, 'AverageAlldIdI'),
+    N.AverageAlldIdI = N.AverageAllCF_CR*N.countrate;
+end;
+
+if (length(N.lag)~= length(L.lag)),
+    j=find(diff(N.lag)==0);
+    N.lag(j+1)=[];
+    N.AverageAllCF_CR(j+1)=[];
+    N.AverageAlldIdI(j+1)=[];
+    
+    j=find(~isnan(N.AverageAllCF_CR));
+    N.AverageAllCF_CR = interp1(N.lag(j), N.AverageAllCF_CR(j), L.lag);
+    N.AverageAlldIdI = interp1(N.lag(j), N.AverageAlldIdI(j), L.lag);
+    N.lag = L.lag;
+end;
+
+
+if ~isfield(L, 'AverageAlldIdI'),
+    L.AverageAlldIdI = L.AverageAllCF_CR*L.countrate;
+    L.AveragedIdI = L.AverageCF_CR*L.countrateGood;
+end;
+
+LwoNoise.AverageAlldIdI = L.AverageAlldIdI - N.AverageAlldIdI;
+LwoNoise.AveragedIdI = L.AveragedIdI - N.AverageAlldIdI;
+LwoNoise.AverageAllCF_CR=(L.AverageAllCF_CR*L.countrate-N.AverageAlldIdI)/LwoNoise.countrate;
+LwoNoise.AverageCF_CR=(L.AverageCF_CR*L.countrateGood-N.AverageAlldIdI)/LwoNoise.countrateGood;
+
+%Get Sampling Volume geometry: two methods
+j1=find(strcmp(varargin, 'Sampling Volume'));
+if length(j1)>1,
+    error('Too many Sampling Volume inputs!')
+elseif length(j1)==1,
+    p = varargin{j1+1};
+    if isstruct(p),
+        y.SamplingVolume = p;
+    else
+        y.SamplingVolume.wXYsq = p(1);
+        y.SamplingVolume.wSq = p(2);
+    
+        y.SamplingVolume.wXY = sqrt(y.SamplingVolume.wXYsq);
+        y.SamplingVolume.w = sqrt(y.SamplingVolume.wSq);
+        y.SamplingVolume.Volume = pi^(3/2)*y.SamplingVolume.wXY^3*y.SamplingVolume.w;
+    end;
+end;
+
+j=find(strcmp(varargin, 'Rh6G calibration'));
+if (length(j1)+length(j))>1, error('Choose a single type of calibration of Sampling volume'), end;
+
+if length(j)>1,
+    error('Too many Rh6G calibration inputs!')
+elseif length(j)==1,
+    p = varargin{j+1};
+    R1 = p{1};
+    R2 = p{2};  
+    beta = p{3};
+    
+    if (length(p) == 3),
+        fitStart = 0.01;
+        UseAll = 1;
+    elseif (length(p) == 4),
+        if ischar(p{4}),
+            UseAll = strcmp(p{4}, 'All');
+            fitStart = 0.01;
+        else
+            UseAll = 1;
+            fitStart = p{4};
+        end;
+    elseif length(p) == 5,
+        fitStart = p{4};
+        UseAll = strcmp(p{5}, 'All');
+    elseif length(p)>5,
+            error('Too many inputs on Rh6G calibration');
+    else error('Should have at least three inputs on Rh6G calibration');
+    end;
+    
+    if UseAll,
+        'Rh1 fit' 
+        First  = PlotFitCFAll(R1, fitStart, @Diffusion3D, [beta, 0.04 30]);
+        R1.FitParam = First;
+    '   Rh2 fit'
+        figure;
+        Second = PlotFitCFAll(R2, fitStart, @Diffusion3D, [beta, 0.04 30]);
+        R2.FitParam = Second;
+    else 
+      'Rh1 fit' 
+        First  = PlotFitCF(R1, fitStart, @Diffusion3D, [beta, 0.04 30]);
+        R1.FitParam = First;
+    '   Rh2 fit'
+        figure;
+        Second = PlotFitCF(R2, fitStart, @Diffusion3D, [beta, 0.04 30]);
+        R2.FitParam = Second;
+    end;
+
+    
+    D=280E-3; %diffusion coefficient of Rh6G in micron^2/millisecond
+    y.SamplingVolume.wXYsq = 4*D*(First.beta(2,1)+Second.beta(2,1))/2 
+    y.SamplingVolume.wSq = (First.beta(3,1)+Second.beta(3,1))/2
+    
+    y.SamplingVolume.wXY = sqrt(y.SamplingVolume.wXYsq);
+    y.SamplingVolume.w = sqrt(y.SamplingVolume.wSq);
+    
+    y.SamplingVolume.Volume = pi^(3/2)*y.SamplingVolume.wXY^3*y.SamplingVolume.w;
+    
+    
+    y.Rh1=R1;
+    y.Rh2=R2;
+    
+%     if UseAll,
+%         y.AP_Rh_Correction = (R1.AverageAllCF_CR - Diffusion3D(R1.FitParam.beta(:,1))+R2.AverageAllCF_CR - Diffusion3D(R2.FitParam.beta(:,1)))/2;
+%     else
+%         y.AP_Rh_Correction = (R1.AverageCF_CR - Diffusion3D(R1.FitParam.beta(:,1))+R2.AverageCF_CR - Diffusion3D(R2.FitParam.beta(:,1)))/2;
+%     end;
+end;
+
+%Remove oscillating noise: two methods
+
+%1) By fitting in the [1 20]ms range 2) external data, e.g. from
+%PowerSpectrum
+
+j=find(strcmp(varargin, 'Remove Oscillating Noise'));
+if length(j)>1,
+    error('Too many Remove Oscillating Noise inputs!')
+elseif length(j)==1,
+    p = varargin{j+1};
+    type = p{1};
+    
+   
+    tempCF = LwoNoise;
+    tempCF.errorCF_CR = tempCF.errorCF_CR/1e8; %workaround large errorbars preventing fits to completion
+    tempCF.errorAllCF_CR = tempCF.errorAllCF_CR/1e8;
+        
+        %remove duplicate time lags at the edges of correlator channel
+        %sets: they prevent DiscreteCosInLogCoord fitting
+        
+    k=find(diff(tempCF.lag)==0);
+    tempCF.lag(k+1)=[];
+    tempCF.AverageCF_CR(k+1)=[];
+    tempCF.AverageAllCF_CR(k+1)=[];
+    tempCF.errorAllCF_CR(k+1)=[];
+    tempCF.errorCF_CR(k+1)=[];
+    
+    if strcmp(type, 'Fit'),
+        figure;
+        %CFParamAll=PlotFitCFAll(tempCF, [1 20], @RemoveCorrNoiseFit, [10 4 20000 10 0.75], y.SamplingVolume.wSq);
+        CFParamAll=PlotFitCFAll(tempCF, [2 40], @RemoveCorrNoiseFit, [100 8 20000 10 0.75], y.SamplingVolume.wSq);
+        pause;
+        %CFParam=PlotFitCF(tempCF, [1 20], @RemoveCorrNoiseFit, [10 4 20000 10 0.75], y.SamplingVolume.wSq);
+        CFParam=PlotFitCFAll(tempCF, [2 40], @RemoveCorrNoiseFit, [100 8 20000 10 0.75], y.SamplingVolume.wSq);
+        pause;
+        CorrelatedNoise.beta = real(CFParam.beta(1:2,1));
+        CorrelatedNoise.betaAll = real(CFParamAll.beta(1:2,1));
+        
+    elseif strcmp(type, 'External'),
+        addParam =p{2};
+        NoiseAmp = addParam(1);
+        NoisePeriod = addParam(2);
+        CorrelatedNoise.beta = [NoiseAmp/LwoNoise.countrateGood NoisePeriod];
+        CorrelatedNoise.betaAll = [NoiseAmp/LwoNoise.countrate NoisePeriod];
+    end;
+    
+    corrWoCorrNoise = tempCF;
+    corrWoCorrNoise.AverageCF_CR = tempCF.AverageCF_CR - feval(@DiscreteCosInLogCoordinates, CorrelatedNoise.beta, tempCF.lag);
+    corrWoCorrNoise.AverageAllCF_CR = tempCF.AverageAllCF_CR - feval(@DiscreteCosInLogCoordinates, CorrelatedNoise.betaAll, tempCF.lag);
+    corrWoCorrNoise.AveragedIdI = tempCF.AveragedIdI - tempCF.countrateGood*feval(@DiscreteCosInLogCoordinates, CorrelatedNoise.beta, tempCF.lag);
+    corrWoCorrNoise.AverageAllCF_CR = tempCF.AverageAlldIdI - tempCF.countrate*feval(@DiscreteCosInLogCoordinates, CorrelatedNoise.betaAll, tempCF.lag);
+
+    
+    
+    y.CorrelatedNoise=CorrelatedNoise;
+    
+    semilogx( corrWoCorrNoise.lag , corrWoCorrNoise.AverageAllCF_CR)
+    pause;
+end;
+
+
+%Define a model dependence of G on Rsq to use with data
+
+j1=find(strcmp(varargin, 'Create Model'));
+if length(j1)>1,
+    error('Too many Create Model inputs!')
+elseif length(j1)==1,
+    p = varargin{j1+1};
+    y.model.name = p{1};
+    if length(p)==2, y.model.addParameters = p{2};end;
+    
+    hSq = 10.^(-3:0.01:3);
+    hParSq = zeros(size(hSq));
+    wSq = y.SamplingVolume.wSq;
+    w = y.SamplingVolume.w;
+
+    
+    if strcmp(y.model.name, 'diff3D'),
+        wSq
+        y.model.G = 1./(1+2/3*hSq)./sqrt(1+2/3*hSq/wSq);
+        y.model.hSq = hSq;
+    end;
+    
+    if strcmp(y.model.name, 'diff3D_speed'),
+        if ~isfield(y.model, 'addParameters'),
+            error('Have to supply characteristic time!'),
+        end;
+        %velocity = 3;
+        %tau_v = (w/velocity)^2; 
+        tau_v = y.model.addParameters;
+        
+        y.model.hSq = hSq;
+        y.model.lag = L.lag;     
+        [HSq, Lag] = meshgrid(hSq, L.lag);
+        
+        y.model.G = 1./(1+2/3*HSq)./sqrt(1+2/3*HSq/wSq).*exp(-(Lag/tau_v).^2./(1+2/3*HSq));
+        
+    end;
+    
+    if strcmp(y.model.name, 'point'),
+        y.model.G = w./sqrt((1+hSq)*(wSq-1).*(hSq-2*hParSq)) .* log((sqrt((1+hSq).*(wSq+2*hParSq))+sqrt((wSq-1)*(hSq-2*hParSq)))./sqrt((wSq+hSq).*(1+2*hParSq)));
+        y.model.hSq = hSq;
+        y.model.hParSq = hParSq;
+    end;
+
+    if strcmp(y.model.name, 'infRod'),
+        y.model.G = atan(sqrt((wSq-1)./(1+hSq)))./sqrt(1+hSq)/atan(sqrt(wSq-1));
+        y.model.hSq = hSq;       
+    end;
+    
+    if strcmp(y.model.name, 'Parallel-Perpendicular'),
+        if ~isfield(y.model, 'addParameters'),
+            error('Have to supply transverse displacement parameter!'),
+        end;
+        not_numbers = find(isnan(y.model.addParameters.hSq));
+        y.model.addParameters.hSq(not_numbers)=[];
+        y.model.addParameters.lag(not_numbers)=[];
+        
+        hSq = interp1(y.model.addParameters.lag, y.model.addParameters.hSq, L.lag);
+        hParSq = 10.^(-3:0.01:3);
+        y.model.hSq = hSq;
+        y.model.hParSq = hParSq;     
+        [hParSq, hSq] = meshgrid(hParSq, hSq);
+        y.model.G = real(w./sqrt((1+hSq)*(wSq-1).*(hSq-2*hParSq)) .* log((sqrt((1+hSq).*(wSq+2*hParSq))+sqrt((wSq-1)*(hSq-2*hParSq)))./sqrt((wSq+hSq).*(1+2*hParSq))));
+    end;
+
+    
+end;
+
+j=find(strcmp(varargin, 'Use Model'));
+if (length(j1)+length(j))>1, 
+    error('Choose a single type of Model used')
+end;
+if length(j)==1,
+    p = varargin{j+1};
+    y.model = p{1};
+end;
+
+%Extract displacements
+
+j1=find(strcmp(varargin, 'UseCorrelationOfType'));
+if length(j1)>1,
+    error('Too many UseCorrelationOfType inputs!')
+elseif length(j1)==1,
+    CorrTypeToDisplacement = varargin{j1+1};
+else %default
+    CorrTypeToDisplacement = 'CF_CR';
+end;
+
+
+figure;
+y.correlation=L;
+y.additiveNoise=N;
+y.corrWoAdditiveNoise=LwoNoise;
+if exist('corrWoCorrNoise')==1, 
+    y.corrWoCorrNoise = corrWoCorrNoise;
+end;
+
+
+y.displacement=ExtractRsqModel_v2(L, y.model, FitType, range, CorrTypeToDisplacement, 'wXYsq', y.SamplingVolume.wXYsq);
+y.withoutAdditiveNoise=ExtractRsqModel_v2(LwoNoise, y.model, FitType, range, CorrTypeToDisplacement,'wXYsq', y.SamplingVolume.wXYsq);
+if exist('corrWoCorrNoise')==1, 
+    y.withoutCorrNoise=ExtractRsqModel_v2(corrWoCorrNoise, y.model, FitType, range, CorrTypeToDisplacement, 'wXYsq', y.SamplingVolume.wXYsq);
+end;
+
+
+figure;
+semilogx(L.lag, L.AverageAllCF_CR, N.lag, N.AverageAllCF_CR, LwoNoise.lag, LwoNoise.AverageAllCF_CR);
+figure;
+%semilogx(R1.lag, R1.AverageCF_CR, R2.lag, R2.AverageCF_CR);
+figure;
+if exist('corrWoCorrNoise')==1, 
+    loglog(y.displacement.lag, y.displacement.RsqAll,  y.withoutAdditiveNoise.lag, y.withoutAdditiveNoise.RsqAll,  y.withoutCorrNoise.lag, y.withoutCorrNoise.RsqAll);
+else
+%    loglog(y.displacement.lag, y.displacement.RsqAll,  y.withoutAdditiveNoise.lag, y.withoutAdditiveNoise.RsqAll);
+end;

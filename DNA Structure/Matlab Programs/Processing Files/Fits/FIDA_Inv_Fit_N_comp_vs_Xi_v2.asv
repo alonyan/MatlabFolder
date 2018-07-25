@@ -1,0 +1,81 @@
+function [logGforFit, logG, P] =FIDA_Inv_Fit_N_comp_vs_Xi_v2(beta, xi, param)
+%  assumes uniform illumination
+%   parameters - 
+% output: probability P(n) of having n counts during the sampling time interval
+% inputs : n - counts per the sampling time interval
+%                     N - number of molecules in the sampling volume
+%                     q - photon count from a single molecule in the field 
+
+Ncomp = param{1};
+model = param{2};
+if (length(param) >= 3),
+    tol = param{3};
+    if isempty(tol),
+        tol = 1e-6;
+    end;
+else
+    tol = 1e-6;
+end;
+
+[logGforFit, logG] = FIDAsum(beta, xi, Ncomp, model, tol); 
+
+if nargout==3,
+    n = param{4}
+    for k = 1:length(n),
+        P(k) = (quadgk(@(phi)FIDAfun(phi, n(k), beta, Ncomp, model, tol), -pi, pi,  'RelTol', tol)/(2*pi));
+    end;
+P = P(:);
+end;
+
+function y = FIDAfun(phi, n, beta, Ncomp, model, tol)
+xi = exp(sqrt(-1)*phi);
+[temp, logy] = FIDAsum(beta, xi, Ncomp, model, tol);
+y1 =exp(logy' - sqrt(-1)*n*phi);
+y = exp(beta(1)*(exp((xi - 1)*beta(2)) -1)  - sqrt(-1)*n*phi);
+[logy-beta(1)*(exp((xi' - 1)*beta(2)) -1)]
+[y1'-y']
+
+
+function [logGforFit, logG] = FIDAsum(beta, xi, Ncomp, model, tol)
+    N = beta(1:2:length(beta));
+    q = beta(2:2:length(beta));
+    if ((length(N)~=Ncomp) | (length(q)~=Ncomp)),
+        error('Number of components does not correspond to the length of beta');
+    end;
+
+    logG=zeros(size(xi));
+    for i=1:Ncomp,
+        if strcmp(model, 'simple'),
+            logG = logG +  N(i)*(exp((xi - 1)*q(i)) -1);
+        elseif strcmp(model, '2D'),
+            logG = logG +  N(i)*FIDA2D(xi, q(i), tol);
+        elseif strcmp(model, '3D'),
+            logG = logG + N(i)*FIDA3D(xi, q(i), tol);
+        else
+            error('unknown model');
+        end;
+    end;
+
+    logG = logG(:);
+    if isreal(xi),
+        logGimag = [];
+    else
+        logGimag =  mod(imag(logG)+pi , 2*pi) - pi;
+    end;
+    logGforFit = [real(logG); logGimag];
+
+function y = FIDA2D(xi, q, tol)
+for j = 1:length(xi),
+    y(j) = 1/2*quadgk(@(x)FIDA_2Dsub(x, xi(j), q), 0, inf,  'RelTol', tol);
+end;
+
+function f = FIDA_2Dsub(x, xi, q)
+f = exp((xi - 1)*q*exp(-x)) -1;
+
+function y = FIDA3D(xi, q, tol)
+for j = 1:length(xi),
+    y(j) = 4/sqrt(pi)*quadgk(@(x)FIDA_3Dsub(x, xi(j), q), 0, inf, 'RelTol', tol);
+end;
+
+function f = FIDA_3Dsub(x, xi, q)
+f = (exp((xi - 1)*q*exp(-2*x.^2)) -1).*x.^2;

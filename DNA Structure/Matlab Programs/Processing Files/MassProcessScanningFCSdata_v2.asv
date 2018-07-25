@@ -1,0 +1,140 @@
+%% List data structure names
+clear B;
+nameTemplate = 'Ball_v_';
+clear vel;
+strucNames = who([nameTemplate '*'])
+for i = 1:length(strucNames),
+    vel(i) = sscanf(strucNames{i}, [nameTemplate '%d']);
+end;
+[temp, I] = sort(vel);
+
+strucNames = strucNames(I) %check the strucNames and delete/add!!!! 
+%%  Afterpulse calculated for Anat's system:  p = -1.4699   -3.5533;    exp(polyval(p, log(lag)))
+p = [-1.4699   -3.5533]; 
+%h = figure;
+minLength =229;
+for i=1:length(strucNames),
+    strucNames{i}
+    eval(['A=' strucNames{i}  ';']);
+  %  A.AverageCF_CR = A.AverageCF_CR + A.AfterPulseCalculated - exp(polyval(p, log(A.lag)));
+  %  A.AfterPulseCalculated = exp(polyval(p, log(A.lag)));
+    if length(A.lag)<minLength,
+        minLength = length(A.lag);
+    end;
+    eval([strucNames{i} '= A;']);
+end;
+%% Construct combined array
+ arrayName = input('What is the name of the combined array?','s') 
+ J=1:minLength;
+ 
+for i=1:length(strucNames),
+    eval(['A=' strucNames{i}  ';']);
+
+   if i ==1,
+       B.lag = A.lag(J);
+       B.AverageCF_CR = A.AverageCF_CR(J);
+       B.errorCF_CR = A.errorCF_CR(J);
+       B.vt_um = A.vt_um(J);
+   else
+        B.AverageCF_CR =  [B.AverageCF_CR A.AverageCF_CR(J)];
+       B.errorCF_CR = [B.errorCF_CR A.errorCF_CR(J)];
+       B.vt_um = [B.vt_um A.vt_um(J)];
+   end;
+    eval([arrayName '= B;']);
+end;
+
+semilogx(B.lag, B.AverageCF_CR);
+%figure(h)
+
+%% Normalization
+%range of lags for plateau normalization
+range = [1e-3 5e-3];
+
+plateau_indexes = find((B.lag>range(1))&(B.lag < range(2)));
+
+%find range of vt_us for baseline subtraction
+semilogx(B.vt_um, B.AverageCF_CR);
+title('find the range to remove baseline and hit any key then')
+pause;
+v = axis;
+
+for i=1:size(B.vt_um, 2),
+    i
+    baseline_indexes= find((B.vt_um(:, i)>v(1))&(B.vt_um(:, i) < v(2)));
+    
+    %take weighted average
+     G0=sum(B.AverageCF_CR(plateau_indexes, i)./B.errorCF_CR(plateau_indexes, i).^2)/sum(B.errorCF_CR(plateau_indexes, i).^(-2));
+    if ~isreal(G0),
+        'not real G0'
+        G0=mean(B.AverageCF_CR(plateau_indexes, i)), 
+    end;
+    
+     baseline=sum(B.AverageCF_CR(baseline_indexes, i)./B.errorCF_CR(baseline_indexes, i).^2)/sum(B.errorCF_CR(baseline_indexes, i).^(-2));
+    if ~isreal(baseline),
+        'not real baseline'
+        baseline =mean(B.AverageCF_CR(baseline_indexes, i)), 
+    end;
+    
+    B.Normalized(:, i) = (B.AverageCF_CR(:, i) - baseline)/(G0 - baseline);
+    B.errorNormalized(:, i) = B.errorCF_CR(:, i)/(G0 - baseline);
+end;
+semilogx(B.lag, B.Normalized);
+eval([arrayName '= B;']);
+
+%% Assume distributions Gaussian and Fit with Gaussian
+arrayName = input('What is the name of the combined array?','s') 
+eval(['B=' arrayName ';']);
+calc_range=[0.04 10];
+j=find((B.lag>calc_range(1))&(B.lag < calc_range(2)));
+length(j)
+for i=j(1):j(length(j)),
+    i
+    j2 = find(B.Normalized(i, :)>1e-2);
+   % semilogxErBar(B.vt_um(i, j2).^2, B.Normalized(i, j2), B.errorNormalized(i, j2),  'o') ;
+    semilogyErBar(B.vt_um(i, j2).^2, B.Normalized(i, j2), B.errorNormalized(i, j2),  'o') ;
+    pause;
+    v= axis;
+    j1 = find((B.vt_um(i, :).^2>v(1))&(B.vt_um(i, :).^2 < v(2)));
+   
+    pGauss(i, :) = polyfit(B.vt_um(i, j1).^2, log(B.Normalized(i, j1)), 1);
+    [BETA, delta, resid] =nlinfitWeight1(B.vt_um(i, j1), B.Normalized(i, j1), @gaussian, [exp(pGauss(i, 2)) (-pGauss(i,1)).^(-1/2)], B.errorNormalized(i, j1)')
+    beta(i, :) = BETA';
+    semilogy(B.vt_um(i, :).^2, B.Normalized(i, :),  'o', B.vt_um(i, :).^2, exp(polyval(pGauss(i, :), B.vt_um(i, :).^2)),  B.vt_um(i, :).^2, gaussian(BETA, B.vt_um(i, :))) ;
+    pause;
+end;
+B.pGauss = pGauss;
+B.betaGauss = beta;
+eval([arrayName '= B;']);
+clear pGauss beta;
+
+%% Evaluate excitation-detection field
+fast = size(B.vt_um, 2);
+slow = 1;
+
+j = 1:200;
+%j = find((B.vt_um(:, fast)>0.0447) & (L48_v900.B.vt_um(:, fast)<sqrt(0.3)));
+
+field.r = B.vt_um(j, fast);
+field.G = (B.Normalized(j, fast)./B.Normalized(j, slow)).^(1./B.Normalized(j, slow));
+%field.G = (B.Normalized(j, fast)./L48_dilute_3107_1_2_bis.Normalized(j, slow)).^(1./L48_dilute_3107_1_2_bis.Normalized(j, slow));
+field.errorG =B.errorNormalized(j, fast);
+semilogy(field.r.^2, field.G) ;
+axis([0 1.5 1e-2 1.2]);
+pause;
+v = axis;
+j3 = find((field.r.^2> v(1)) & (field.r.^2<v(2)));
+
+
+[BETA, delta, resid] =nlinfitWeight1(field.r(j3), field.G(j3), @gaussian, [1 0.2], field.errorG(j3));
+field.paramGauss = BETA;
+semilogy(field.r.^2, field.G, field.r.^2, gaussian(BETA, field.r)) ;
+axis(v);
+
+B.field = field;
+eval([arrayName '= B;']);
+%% Evaluate displacements from the gaussian slopes
+%eval(['B=' arrayName ';']);
+B.hSq_weighted = (B.betaGauss(:, 2)/B.field.paramGauss(2)).^2-1;
+B.hSq_unweighted = - 1/B.field.paramGauss(2)^2./B.pGauss(:, 1)-1;
+loglog(B.lag(1:length(B.hSq_weighted)), B.hSq_weighted, 'o', B.lag(1:length(B.hSq_weighted)), B.hSq_unweighted, 'o', B.lag, B.lag.^(1/2))
+eval([arrayName '= B;']);

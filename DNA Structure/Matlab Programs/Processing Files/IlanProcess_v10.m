@@ -1,0 +1,144 @@
+%clear
+close all
+NormRange = [1e-3 2e-3];
+filepath = 'D:\People\Ilan\Experiments\290110\';
+
+%%  Load picture
+picName = 's_221_c2.mat'
+load([filepath picName]);
+ScanParam
+[Pict1, Norm1, Pict2, Norm2, PixSize, LineScaleV, Counts] = ReconstructImage_v4(AI, Cnt,1, ScanParam);
+pic1 = Pict1./Norm1;pic2 = Pict2./Norm2;
+ meanPic = mean([pic1(find(~isnan(pic1))); pic2(find(~isnan(pic2)))])
+stdPic = std([pic1(find(~isnan(pic1))); pic2(find(~isnan(pic2)))])
+range =meanPic+ stdPic*[-1 3];
+subplot(1, 2, 1); imagesc(pic1, range);axis image; axis off;  subplot(1, 2, 2); imagesc(pic2, range);axis image; axis off; colorbar; figure(gcf);
+%% Look at the wall width
+linesJ = 50:51;
+ plot([pic1(linesJ, :)'  pic2(linesJ, :)'])
+ title(['PixSize = ' num2str(PixSize)]);
+ figure(gcf)
+
+%% Blank file name
+blank_fname_In ={ 's_221_c_corr_2' };
+blankIn = LoadMultipleCorrFunc_v2(filepath,  blank_fname_In, 'Rejection',2, 'NormalizationRange', NormRange,  'DeleteList', [    ]);
+%blankIn = LoadMultipleCorrFunc_v2(filepath,  blank_fname_In, 'Rejection',2, 'NormalizationRange', NormRange,  'DeleteList', q(1:size(blankIn.corrfuncbad, 2)));
+[p, q] = sort(blankIn.score, 'descend')
+FitParam_blank = PlotFitCF(blankIn, [0.002 1000], @Diffusion3D, [20000 0.05 30]);
+wSq = FitParam_blank.beta(3, 1);
+tau_blank_In = FitParam_blank.beta(2, 1);
+size(blankIn.CF_CRbad, 2)
+%% Cluster analysis
+Nclust = 30;round(size(blankIn.corrfunc, 2)/2);
+LinkageType ='single'% 'single', 'average', 'weighted'
+Range = [0.1 10000]; % range of decay of the correlation function
+[T, j, DeleteList] = ClusterizeCF_CR_v1(blankIn, 'No of Clusters', Nclust, 'Normalization range', [1e-3 5e-3], 'Distance range', Range, 'Linkage', LinkageType);
+
+%% Reload if needed
+%Rejection =10;
+ blankIn = LoadMultipleCorrFunc_v2(filepath, blank_fname_In, 'Rejection', 10, 'DeleteList', DeleteList);
+ FitParam_blank = PlotFitCF(blankIn, [0.002 1000], @Diffusion3D, [20000 0.05 30]);
+wSq = FitParam_blank.beta(3, 1);
+tau_blank_In = FitParam_blank.beta(2, 1);
+
+%% Outside vesicle
+blank_fname_Out ={ 'gl_mind_egfp_a_corr_4_out' };
+blankOut = LoadMultipleCorrFunc_v2(filepath,  blank_fname_Out, 'Rejection', 2, 'NormalizationRange', NormRange,  'DeleteList', [         ]);
+%blankOut = LoadMultipleCorrFunc_v2(filepath,  blank_fname_Out, 'Rejection',2, 'NormalizationRange', NormRange,  'DeleteList', q(1:size(blankOut.corrfuncbad, 2)));
+[p, q] = sort(blankOut.score, 'descend')
+FitParam_blank = PlotFitCF(blankOut, [0.002 1000], @Diffusion3D, [20000 0.05 30]);
+wSq = FitParam_blank.beta(3, 1);
+tau_blank_Out = FitParam_blank.beta(2, 1);
+size(blankOut.CF_CRbad, 2)
+%% Cluster analysis
+Nclust = round(size(blankOut.corrfunc, 2)/2);
+LinkageType ='single'% 'single', 'average', 'weighted'
+Range = [0.1 10000]; % range of decay of the correlation function
+[T, j, DeleteList] = ClusterizeCF_CR_v1(blankOut, 'No of Clusters', Nclust, 'Normalization range', [1e-3 5e-3], 'Distance range', Range, 'Linkage', LinkageType);
+
+%% Reload if needed
+%Rejection =10;
+ blankOut = LoadMultipleCorrFunc_v2(filepath, blank_fname_Out, 'Rejection', 10, 'DeleteList', DeleteList);
+FitParam_blank = PlotFitCF(blankOut, [0.002 1000], @Diffusion3D, [20000 0.05 30]);
+wSq = FitParam_blank.beta(3, 1);
+tau_blank_Out = FitParam_blank.beta(2, 1);
+size(blankOut.CF_CRbad, 2)
+%% Sample
+sample_fname = {'gl_mind_egfp_a_corr_4'}%dynamic
+sample = LoadMultipleCorrFunc_v2(filepath, sample_fname , 'Rejection',  2, 'NormalizationRange', NormRange,  'DeleteList', [   ]);
+[sc, I] = sort(sample.score, 'descend')
+size(sample.CF_CRbad, 2)
+%% Cluster analysis
+Nclust = round(size(sample.corrfunc, 2)/2);
+LinkageType ='single'% 'single', 'average', 'weighted'
+Range = [0.1 10000]; % range of decay of the correlation function
+[T, j, DeleteList] = ClusterizeCF_CR_v1(sample, 'No of Clusters', Nclust, 'Normalization range', [1e-3 5e-3], 'Distance range', Range, 'Linkage', LinkageType);
+
+%% Reload if needed
+%Rejection =10;
+ sample = LoadMultipleCorrFunc_v2(filepath, sample_fname, 'Rejection', 10, 'DeleteList', DeleteList);
+ 
+%%
+FitParam_sample = PlotFitCF(sample, [0.02 1000], @Diffusion2D, [5000 1]);
+tau_sample = FitParam_sample.beta(2, 1);
+figure(gcf)
+
+%%  Remove noise from sample
+fracIn = 0.5;
+fracOut = 0.5;
+blank.lag = blankOut.lag;
+blank.AveragedIdI  =  blankOut.AveragedIdI*fracOut + blankIn.AveragedIdI*fracIn;
+blank.countrateGood = blankOut.countrateGood *fracOut+ blankIn.countrateGood*fracIn;
+blank.errorCF_CR = sqrt(blankOut.errorCF_CR.^2*fracOut^2+ blankIn.errorCF_CR.^2*fracIn^2);
+blank.AverageCF_CR = blank.AveragedIdI/blank.countrateGood;
+j= find((blank.lag>NormRange(1)) &    (blank.lag<NormRange(2)));
+blank.G0 = robmean(blank.AverageCF_CR(j), blank.errorCF_CR(j));
+
+membr = sample;
+membr.AveragedIdI = sample.AveragedIdI - blank.AveragedIdI;
+membr.countrateGood = sample.countrateGood - blank.countrateGood;
+membr.AverageCF_CR = membr.AveragedIdI/membr.countrateGood;
+membr.errorCF_CR = sqrt(sample.errorCF_CR.^2+ blank.errorCF_CR.^2);
+
+j= find((membr.lag>NormRange(1)) &    (membr.lag<NormRange(2)));
+membr.G0 = robmean(membr.AverageCF_CR(j), membr.errorCF_CR(j));
+
+semilogx(blank.lag, blank.AverageCF_CR, sample.lag, sample.AverageCF_CR, membr.lag, membr.AverageCF_CR);
+figure(gcf)
+
+%% Fit 2D diffusion to membr
+FitParam_membr = PlotFitCF(membr, [0.02 1000], @Diffusion2D, [6000 1]);
+hold all;
+semilogx(blank.lag, blank.AverageCF_CR);
+hold off;
+tau_membr = FitParam_membr.beta(2, 1)
+ChiSq = FitParam_membr.chiSqNorm  
+figure(gcf)
+ 'estimate oligomerisation from amplitudes'
+ membr.G0/blank.G0
+ 'estimate oligomerisation from fits'
+ FitParam_membr.beta(1, 1)/ FitParam_blank.beta(1, 1)
+
+%%
+struc_name = input('What is the name of the resulting structure?   ', 's');
+S.blank = blank;
+S.sample = sample;
+S.membr = membr;
+S.FitParam_blank = FitParam_blank;
+S.FitParam_sample = FitParam_sample;
+S.FitParam_membr = FitParam_membr;
+S.tau_membr = tau_membr;
+S.oligomerFromAmpl =  membr.G0/blank.G0;
+S.oligomerFromFit =  FitParam_membr.beta(1, 1)/ FitParam_blank.beta(1, 1);
+
+S.blankG0 = blank.G0;
+S.membrG0 = membr.G0;
+S.Nmolecules_on_membr = membr.countrateGood/membr.G0;
+S.molecules_per_umSq = S.Nmolecules_on_membr/(pi*0.25^2) ;
+eval([struc_name '=S'])
+
+%% save to file
+fname = 'process070709'
+save([filepath fname])
+
+

@@ -1,0 +1,187 @@
+%% Loading Scanning Data
+warning('off', 'MATLAB:Axes:NegativeDataInLogAxis')
+filepath = 'F:\Alon\250508\';
+filenames = { 'Lambda06uM_v2857'};
+Rejection = 2;
+NormRange = [1e-3 3e-3];
+S = LoadMultipleCorrFunc_v2(filepath, filenames, 'Rejection', Rejection, 'NormalizationRange', NormRange,  'DeleteList', []);
+%% Cluster analysis
+Nclust = 4;
+LinkageType ='single'% 'single', 'average', 'weighted'
+Range = [1e-1 5]; % range of decay of the correlation function
+[T, j, DeleteList] = ClusterizeCF_CR_v1(S, 'No of Clusters', Nclust, 'Normalization range', [1e-3 5e-3], 'Distance range', [1e-1 10], 'Linkage', LinkageType);
+
+%% Reload if needed
+ S = LoadMultipleCorrFunc_v2(filepath, filenames, 'Rejection', Rejection, 'DeleteList', DeleteList);
+ 
+%% Plot Speed
+plot(S.v_um_s)
+
+%% Find range for baseline subtraction
+semilogx(S.lag, S. Normalized);
+title('find range for baseline subtraction');
+figure(gcf)
+pause;
+S.rangeBL = InAxes;
+S.Normalized = (S.Normalized - mean(S.Normalized(InAxes)))/(1 - mean(S.Normalized(InAxes)));
+semilogx(S.lag, S. Normalized);
+figure(gcf)
+
+title('find plateau for normalization');
+pause;
+S.rangeNorm = InAxes;
+S.Normalized = S.Normalized /mean(S.Normalized(InAxes));
+S.G0 = mean(S.AverageCF_CR(S.rangeNorm)) - mean(S.AverageCF_CR(S.rangeBL));
+semilogx(S.lag, S. Normalized);
+
+%% remove fields which are not needed for futher processing
+fields_to_remove = {
+    'corrfunc' 
+    'AfterPulseCalculated'
+    'trace'
+    'CR'
+    'CF_CR'
+    'dIdI'
+    'corrfuncgood'
+    'tracegood'
+    'CF_CRgood'
+    'dIdIgood'
+    'corrfuncbad'
+    'tracebad'
+    'CF_CRbad'
+    'dIdIbad'
+     'AveragedIdI'
+    'AverageAlldIdI'
+     'errordIdI'
+    'errorAlldIdI'
+    'WeightAverageCF'
+    'WeightAverageAllCF'
+    'errorWA_CF'
+    'errorAllWA_CF'
+    'score'
+    'AfterPulse'
+    'Xcoord'
+    'Ycoord'
+    'Zcoord'
+     'v_um_s'
+    't_v'
+    };
+S = rmfield(S, fields_to_remove)
+%% Create Data Structure
+Lambda_143uMb  = S;
+
+%% Processing Scanning FCS structure data
+dataname = 'data250508';
+fieldname = 'Lambda06uM_v2857';
+S = eval([dataname '.' fieldname]); %input structure
+%% Or continue
+semilogy(S.vt_um.^2, S.Normalized);
+axis([0 5 1e-3 1.2]);
+
+
+%% preparing for Fourier Transform
+N = 512; % number of interpolation points
+Rm = 10; %upper limit of corrfunc confidence
+
+load 'c.mat';  %for Hankel Transform
+c = c(1, 1:N+1);    %Bessel function zeros;
+S.r = c(1:N)'*Rm/c(N+1);   % Radius vector
+
+S.fr = exp(interp1(S.vt_um.^2, log(S.Normalized), S.r.^2, 'linear'));
+%zero-padding from the first zero encountered
+S.fr = real(S.fr);
+S.fr(find(S.fr< 0)) = 0;
+
+semilogy(S.vt_um.^2, S.Normalized, '-o', S.r.^2, S.fr);
+title('Find lower range for interpolation');
+axis([0 5 1e-3 1.2]);
+figure(gcf)
+pause;
+ax = axis;
+%j1 = InAxes; %
+j1 =find( (S.vt_um.^2 > ax(1)) & (S.vt_um.^2 < ax(2)) & (S.Normalized > ax(3)) & (S.Normalized < ax(4)));
+p1 = polyfit(S.vt_um(j1).^2, log(S.Normalized(j1)), 1);
+
+S.fr_int = S.fr;
+j2 = find(S.r.^2 >  ax(2));
+S.fr_int(j2) = exp(polyval(p1, S.r(j2).^2));
+semilogy(S.vt_um.^2, S.Normalized, '-o', S.r(j2).^2, S.fr_int(j2));
+axis([0 5 1e-3 1.2]);
+%%
+semilogy(S.vt_um.^2, S.Normalized, '-o', S.r.^2, S.fr_int);
+title('Find upper range for interpolation');
+axis([0 5 1e-3 1.2]);
+figure(gcf)
+pause;
+ax = axis;
+%j3 = InAxes; % 
+j3 = find((S.vt_um.^2 > ax(1)) & (S.vt_um.^2 < ax(2)) );
+p2 = polyfit(S.vt_um(j3).^2, log(S.Normalized(j3)), 1);
+
+j4 = find(S.r.^2  <  ax(2));
+S.fr_int(j4) = exp(polyval(p2, S.r(j4).^2));
+semilogy(S.vt_um.^2, S.Normalized, '-o', S.r.^2, S.fr_int);
+axis(ax);
+
+%% "Honest" Fourier Transform
+wXY = 0.25;
+FY = FourierTransform(S, '2D');
+S.q = FY.q;
+S.fq = FY.fq;
+
+%interpolated Fourier Transform
+Y.r = S.r;
+Y.fr = S.fr_int;
+FY = FourierTransform(Y, '2D');
+S.fq_int = FY.fq;
+
+semilogy(S.q.^2, S.fq, S.q.^2, S.fq_int)
+figure(gcf)
+pause;
+S.Sq = S.fq.*exp(wXY^2*S.q.^2/4);
+S.Sq_int = S.fq_int.*exp(wXY^2*S.q.^2/4);
+j3 = find(S.q < 20);
+semilogy(S.q(j3), S.Sq(j3), S.q(j3), S.Sq_int(j3))
+%%  Fill in fields
+eval([dataname '_proc.' fieldname '= S;']);
+
+%% Fit with measured Structure factor in dilute solutions (modified Pincus theory)
+dataname = 'data251207'
+DiluteFieldName = 'Lambda_24uM';
+
+SQ0 = eval([dataname '_proc.'  DiluteFieldName]);
+%%
+%SQ0 = Lambda_sim;
+%normalizing to 1
+plot(SQ0.q.^2, SQ0.Sq_int, 'o');
+
+title('Find upper range for extrapolation to 0-q');
+axis([0 5 0 1.2]);
+figure(gcf)
+pause;
+ax = axis;
+j4 = find( (SQ0.q.^2 > ax(1)) & (SQ0.q.^2 < ax(2)));
+SQ0.p = polyfit(SQ0.q(j4).^2, SQ0.Sq_int(j4), 1)
+
+plot(SQ0.q.^2, SQ0.Sq_int, 'o', SQ0.q.^2, polyval(SQ0.p, SQ0.q.^2));
+axis([0 5 0 1.2]);
+
+%% Fits
+fieldToFit = 'Lambda_785uM';
+S = eval([dataname '_proc.'  fieldToFit]);
+
+loglog(S.q, S.Sq_int)
+title('Find  range for fit');
+axis([0 20 1e-3 1.2]);
+figure(gcf)
+pause;
+ax = axis;
+j4 = find( (S.q > ax(1)) & (S.q < ax(2)));
+beta = nlinfitWeight1(S.q(j4), S.Sq_int(j4), @FitSemidiluteStructureFactor, [1 1], ones(size(j4)), [SQ0.q SQ0.Sq_int/SQ0.p(2)])
+
+loglog(S.q, S.Sq_int, S.q(j4), FitSemidiluteStructureFactor(beta, S.q(j4), [SQ0.q SQ0.Sq_int/SQ0.p(2)]))
+axis([0 20 1e-3 1.2]);
+ksi = sqrt(beta(2))
+
+
+

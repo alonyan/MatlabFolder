@@ -1,0 +1,1 @@
+function f=gaussian(beta, x)beta1=beta(1);beta2=beta(2);%beta3=beta(3);%f=beta1*exp(-((x-beta2)/beta3).^2);f=beta1*exp(-(x/beta2).^2);

@@ -1,0 +1,86 @@
+function [Pict1, Norm1, Pict2, Norm2, PixSize, LineScaleV, Counts1] = ReconstructImage_v4(AI, Cnt, Nplane, ScanParam, varargin)
+% Last parameter PixSize in um is optional
+if length(varargin) >1,
+    error('Too many input parameters!');
+elseif length(varargin) == 1,
+    PixSize = varargin{1};
+    PixSizeV = varargin{1}/8; %um to V
+else
+    PixSize = ScanParam.Dimension2_col_um/ScanParam.Lines;
+    PixSizeV = PixSize/8;
+end;
+
+
+if strcmp(ScanParam.ScanType, 'ZXscan' ),
+    PixInd = 3;
+    Xc = ScanParam.Offset_AIZ;
+elseif strcmp(ScanParam.ScanType, 'XYscan' ),
+    PixInd = 1;
+    Xc = ScanParam.Offset_AIX;
+elseif strcmp(ScanParam.ScanType, 'YZscan' ),
+    PixInd = 2;
+    Xc = ScanParam.Offset_AIY;
+end;
+ppL  = ScanParam.Ponits_per_Line;
+Lines=ScanParam.Lines;
+LineLenV=(ScanParam.Dimension1_lines_um)/8;
+
+PointsInPlane = Lines*ppL;
+j0 =  (Nplane - 1)*PointsInPlane;
+J = (1:PointsInPlane) +j0;
+if Nplane ==1,
+    Cnt  = diff([0 Cnt(J)]);
+    X = AI(PixInd, J) - [0 diff(AI(PixInd,J))]/2; % coordinate marks the end of count
+else
+     Cnt = diff(Cnt([j0 J]));
+     X = AI(PixInd, J) -  diff(AI(PixInd, [j0 J]))/2; % coordinate marks the end of count
+end;
+
+X = reshape(X, ppL, Lines);
+Counts = reshape(Cnt, ppL, Lines);
+Ic = round(ppL/2);
+X1 = X(1:Ic, :);
+X2 = X(ppL:(-1):(Ic+1), :);
+Counts1 = Counts(1:Ic, :);
+Counts2 = Counts(ppL:(-1):(Ic+1), :);
+
+Xmin = Xc - LineLenV/2;
+PixPerLine = round(LineLenV/PixSizeV);
+
+if mod(Nplane,2),     % even and odd planes are scanned in the opposite directions
+    K=1:Lines;
+else
+    K = Lines:-1:1;
+end;
+
+clear Pict1;
+for j= K,
+     tempCnt=zeros(1, PixPerLine);
+     tempNum = zeros(1, PixPerLine);
+     for i=1:Ic,
+          ind = round((X1(i, j) - Xmin)/PixSizeV);
+          if((ind>0) & (ind<= PixPerLine)),
+                tempCnt(ind) = tempCnt(ind) + Counts1(i, j);
+                tempNum(ind) = tempNum(ind) +1;
+          end;
+     end;
+     Pict1(K(j), :) = tempCnt;
+     Norm1(K(j), :) = tempNum ;   
+end;
+
+clear Pict2;
+for j= K,
+     tempCnt=zeros(1, PixPerLine);
+     tempNum = zeros(1, PixPerLine);
+     for i=1:Ic,
+          ind = round((X2(i, j) - Xmin)/PixSizeV);
+          if((ind>0) & (ind<= PixPerLine)),
+                tempCnt(ind) = tempCnt(ind) + Counts2(i, j);
+                tempNum(ind) = tempNum(ind) +1;
+          end;
+     end;
+     Pict2(K(j), :) = tempCnt;
+     Norm2(K(j), :) = tempNum;   
+end;
+
+LineScaleV = Xmin + (1:PixPerLine)*PixSizeV;

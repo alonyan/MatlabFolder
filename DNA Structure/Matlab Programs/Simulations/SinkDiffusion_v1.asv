@@ -1,0 +1,59 @@
+L = 6; %half-length in um
+tau_bleach = 4.1; % bleaching time in s
+D = 42/4; %um^2/s
+w = 0.25; % focal spot size in um
+
+dx = 0.1; % mesh size in um
+dt = 1e-4; % time step in s
+N_time = 100000; % number of time steps
+
+%% 
+x = 0:dx:L;
+sizeX = length(x);
+I = exp(-2*x.^2/w^2);
+c = ones(size(x));
+
+for i = 1:N_time,
+    d2c = diff(c(i, :), 2);
+    d2c = [0 d2c 0];
+    c(i+1, :) = c(i, :) + dt*(D*d2c - I.*c(i, :)/tau_bleach); 
+    c(i+1, 1) = c(i+1, 2);% zero diff boundary conditions
+    c(i+1, sizeX) = c(i+1, sizeX-1);
+end;
+F = c*I';
+%% More efficient: take only a sample of time points
+N_time = 3000000; % number of time steps
+deltaT = 1000; % take measurment every deltaT time steps
+x = 0:dx:L;
+sizeX = length(x);
+I = exp(-2*x.^2/w^2);
+c0 = ones(size(x));
+clear c;
+c = c0;
+for i = 1:N_time,
+    d2c = diff(c0, 2);
+    d2c = [0 d2c 0];
+    c1 = c0 + dt*(D*d2c - I.*c0/tau_bleach); 
+    c1( 1) = c1(2);% zero diff boundary conditions
+    c1(sizeX) = c1(sizeX-1);
+    c0 = c1;
+    if mod(i, deltaT) == 0,
+        c = [c; c1];
+    end;      
+end;
+F = c*I';
+
+subplot(1, 2, 1); imagesc(c); colorbar;
+subplot(1, 2, 2); plot(F); figure(gcf)
+
+R.F = F;
+R.L = L;
+R.tau_bleach = tau_bleach;
+R.w = w;
+R.D = D;
+R.dx = dx;
+R.dt = dt;
+R.N_time = N_time;
+R.deltaT = deltaT;
+figure;
+plot(1:length(F), F/F(1), 1:length(S1.sample.trace(:)), S1.sample.trace(:)/S1.sample.trace(1, 1));figure(gcf)

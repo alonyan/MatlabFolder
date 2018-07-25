@@ -1,0 +1,8 @@
+function y = MembraneBulkBacteriaDistributionTableFit(beta, x, LookUpCell)
+
+Ns = beta(1);
+Nb = beta(2);
+Xc = beta(3);
+R = beta(4);
+
+

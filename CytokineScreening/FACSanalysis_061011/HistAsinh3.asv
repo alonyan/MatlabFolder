@@ -1,0 +1,438 @@
+function [procData, LinearRange] = HistAsinh3(Data, varargin)
+%  Extracts Data in a TAG channel (similar to GetFACSdataFromMatLabStructByTag)  and evaluates histograms in a quasi Logicle presentation
+% The required parameter is Data which can be either a vector of measured
+% values or a data structure loaded by LoadFACSfromFlowJoWorkspace_v
+% program
+%  Other Parameters come in pairs:
+%   'Tag'  - same as in GetFACSdataFromMatLabStructByTag
+%   'Nbins' - the requested number of histogram bins (default Nbins = 300)
+%  'LinearRange' - the requested range of linear scale in the data
+%  representation: the data are going to be rescaled according to X =
+%  asinh(data/LinearRange) . If not provided, LinearRange is calculated
+%  from the 5th percentile of negative data.
+%   'RangeMax'  - the maximal value of the histogram bin (to limit the effect of outliers on the bin size, default RangeMax = 250000)
+%   'RangeMin' - the minimal value of the histogram bin (default = -LinearRange)
+%  'Bins' - followed by a vector for 1D histogram or a cell array of two
+%  vectors for 2D histogram. Use these vectors as bins AFTER rescaling with
+%  Linear Range. Overwrites RangeMax, RangeMin and Nbins
+%
+% Outputs:
+%  X - bins in Xscale
+%  Xtrue - bins in the original scale, i.e. Xtrue = LinearRange*sinh(X)
+% H - the histogram over X
+% Hnorm- histogram normalized to the width of Xtrue bins
+% procData - data structure containing other outputs
+% LinearRange - calculated or supplied linear range.
+% Example of application
+% [H, Hnorm, X, Xtrue, proc_ExposedToIL2_5CC7, LinearRange] = HistAsinh(ExposedToIL2_5CC7, 'Tag','PE', 'Linear Range', LinearRange);
+%
+% HistAsinh3 is a version of HistAsinh that allows for 2D histogram
+% calculations. Put a cell array for the 'Tag' parameter, e.g. {'pSTAT5', 'CD25'}
+    
+    DefaultLR = 150;
+    
+    j1=find(strcmp(varargin, 'ProcDataIn'));
+    if length(j1)>1,
+        error('Too many ProcDataIn inputs!')
+    elseif length(j1)==1,
+        procData = varargin{j1+1};
+    end;
+    
+    j1=find(strcmp(varargin, 'LinearRange'));
+    if length(j1)>1,
+        error('Too many LinearRange inputs!')
+    elseif length(j1)==1,
+        LinearRange = varargin{j1+1};
+    end;
+    
+    if isnumeric(Data), % If Data is just a numeric vector or matrix,
+        if isvector(Data), % 1D histogram of a vector
+            dataType = 'numeric1D';
+        elseif size(Data, 2),
+            dataType = 'numeric2D';
+        else
+            errordlg('Numeric data should be either vectors or two-column matrix!')
+        end;
+        
+    elseif isstruct(Data)&isfield(Data, 'data'), % data as loaded by LoadFACSfromFlowJoWorkspace_v function
+        j1=find(strcmp(varargin, 'Tag'));
+        if length(j1)>1,
+            error('Too many Tag inputs!')
+        elseif length(j1)==0,
+            error('Tag has to be provided for structure data')
+        else
+            Tag = varargin{j1+1};
+            if iscell(Tag) & length(Tag) > 2,
+                errordlg('Only one or two tags are allowed!'),
+            elseif ~iscell(Tag) , %tag is a string
+                TagData = GetFACSdataFromMatLabStructByTag(Data, Tag);
+                dataType = 'structure1D';
+            else % two Tags for two channels
+                 TagData1 = GetFACSdataFromMatLabStructByTag(Data, Tag{1}) ;
+                 TagData2 = GetFACSdataFromMatLabStructByTag(Data, Tag{2});
+                 dataType = 'structure2D';
+            end;
+        end;
+    else 
+        error('Wrong data type')
+    end;
+    
+    if exist('LinearRange'), 
+       if strfind(dataType, '2D') & (length(LinearRange) ==1),
+           LinearRange = [LinearRange LinearRange];
+           'here'
+       end;
+    else %find from fifth negative percentile
+       if strfind(dataType, '1D'),
+           if strfind(dataType, 'numeric'),
+               tempData = Data;
+           else
+               tempData = [];
+               for i = 1:length(TagData),
+                   tempData = [tempData; TagData(i).(Tag)];
+               end;
+           end;
+           tempData = tempData(tempData < 0);
+           if length(tempData)>10,
+                tempData = sort(tempData);
+                LinearRange = - tempData(round(length(tempData)*0.05)); % 5th negative percentile
+           else
+                LinearRange = DefaultLR;
+                warning('Using Default Linear Range');
+           end;
+           
+       else % if dataType 2D
+           if strfind(dataType, 'numeric'),
+               tempData1 = Data(:, 1);
+               tempData2 = Data(:, 2);
+           else %structure
+                tempData1 = [];
+                tempData2 = [];
+                for i = 1:length(TagData1),
+                    tempData1 = [tempData1; TagData1(i).(Tag{1})];
+                    tempData2 = [tempData2; TagData2(i).(Tag{2})];
+                end;
+           end;
+           
+            tempData1 = tempData1(tempData1 < 0);
+            if length(tempData1)>10,
+                tempData1 = sort(tempData1);
+                LinearRange1 = - tempData1(round(length(tempData1)*0.05)); % 5th negative percentile
+            else
+                LinearRange1 = DefaultLR;
+                warning('Using Default Linear Range on first channel');
+            end;
+            tempData2 = tempData2(tempData2 < 0);
+            if length(tempData2)>10,
+                 tempData2 = sort(tempData2);
+                LinearRange2 = - tempData2(round(length(tempData2)*0.05)); % 5th negative percentile
+            else
+                LinearRange2 = DefaultLR;
+                warning('Using Default Linear Range on second channel');
+            end;
+            LinearRange = [LinearRange1 LinearRange2];
+       end; % is strfind(dataType...
+    end;%if exist('LinearRange')
+  
+
+    j1=find(strcmp(varargin, 'Nbins'));
+    if length(j1)>1,
+        error('Too many Nbins inputs!')
+    elseif length(j1)==1,
+        Nbins = varargin{j1+1};
+    else %default
+        Nbins = 300;
+    end; 
+    if strfind(dataType, '2D')& (length(Nbins) == 1),
+        Nbins = [Nbins Nbins];
+    end;
+    
+    j1=find(strcmp(varargin, 'RangeMax'));
+    if length(j1)>1,
+        error('Too many RangeMax inputs!')
+    elseif length(j1)==1,
+        RangeMax = varargin{j1+1};
+    else %default
+        RangeMax = 250000;
+    end;
+    if strfind(dataType, '2D')& (length(RangeMax) == 1),
+        RangeMax = [RangeMax RangeMax];
+    end;
+    
+    j1=find(strcmp(varargin, 'RangeMin'));
+    if length(j1)>1,
+        error('Too many RangeMin inputs!')
+    elseif length(j1)==1,
+        RangeMin = varargin{j1+1};
+    else %default
+        RangeMin = -LinearRange;
+    end;
+     if strfind(dataType, '2D')& (length(RangeMin) == 1),
+        RangeMin = [RangeMin RangeMin];
+    end;
+    
+%     j1=find(strcmp(varargin, 'Outliers Fraction'));
+%     if length(j1)>1,
+%         error('Too many Outliers Fraction inputs!')
+%     elseif length(j1)==1,
+%         OutliersFraction = varargin{j1+1};
+%     else %default
+%         OutliersFraction = 2e-3;
+%     end;
+    
+    dX = (asinh(RangeMax(1)/LinearRange(1)) - asinh(RangeMin(1)/LinearRange(1)))/Nbins(1);
+    Xe = asinh(RangeMin(1)/LinearRange(1)):dX:asinh(RangeMax(1)/LinearRange(1));
+    dXnorm = LinearRange(1)*diff(sinh(Xe));
+    X = Xe(1:Nbins(1)) + dX/2;
+    
+    j1=find(strcmp(varargin, 'Bins'));
+    if length(j1)>1,
+        error('Too many Bins inputs!')
+    elseif length(j1)==1,
+        Bins = varargin{j1+1};
+   
+        if iscell(Bins),
+            X = Bins{1};
+            X = X(:);
+            X = sort(X);
+            %dX = mean(diff(X));
+            dX = diff(X);
+            Xe = [X - dX/2; (X(end) + dX(end)/2)];
+            if length(Bins) > 1,
+                Y = Bins{2};
+                Y = Y(:);
+                Y = sort(Y)
+                dY = diff(Y);
+                Ye = [Y - dY/2; (Y(end) + dY(end)/2)];
+                Ytrue = LinearRange(2)*sinh(Y); 
+                dYnorm = LinearRange(2)*diff(sinh(Ye));
+            end;
+        elseif isvector(Bins),
+            X = Bins;
+            X = X(:);
+            X = sort(X);
+           % dX = mean(diff(X));
+           dX = diff(X);
+            Xe = [X - dX/2; (X(end) + dX(end)/2)];
+        else
+            errordlb 'Wrong Bins type. Should either a vector or cell array of two vectors.');
+        end;
+    end;
+        
+    X = X(:);
+    dXnorm = LinearRange(1)*diff(sinh(Xe));
+    Xtrue = LinearRange(1)*sinh(X);
+    
+    if strfind(dataType, '2D') &  (~exist('Y', 'var')),       
+        dY = (asinh(RangeMax(2)/LinearRange(2)) - asinh(RangeMin(2)/LinearRange(2)))/Nbins(2);
+        Ye = asinh(RangeMin(2)/LinearRange(2)):dY:asinh(RangeMax(2)/LinearRange(2));
+        dYnorm = LinearRange(2)*diff(sinh(Ye));
+        Y = Ye(1:Nbins(2)) + dY/2;
+        Y = Y(:);
+        Ytrue = LinearRange(2)*sinh(Y);
+        dYnorm = LinearRange(2)*diff(sinh(Ye));
+    end;
+
+    if strcmp(dataType, 'numeric1D'),
+        H = hist(asinh(Data./LinearRange), X);
+        errH = sqrt(H+1)/sum(H);
+        H = H/sum(H);        
+        Hnorm = H./dXnorm;
+        errHnorm = errH./dXnorm;%/sum(Hnorm);
+        %Hnorm = Hnorm/sum(Hnorm);
+    end;
+    
+    if strcmp(dataType, 'numeric2D'),
+        wData = asinh(Data/repmat(LinearRange, size(Data, 1), 1));
+        H = hist3(wData, {X Y});
+        %H = H/sum(H(:));
+        %Hnorm = H./dXnorm;
+        
+        %get mean std etc values of Y in each X bin
+        J = ceil((wData(:, 1) - Xe(1))/dX);
+        
+        for i=1:length(X),
+            wXtrue = Data(J==i , 1);
+            YvsX.(['mean_' Tag{1}])(i) = mean(wXtrue);
+            YvsX.(['median_' Tag{1}])(i)  = median(wXtrue);
+            YvsX.(['std' Tag{1}])(i)  = std(wXtrue);
+            wYtrue = Data(J==i , 2);
+            YvsX.(['mean_' Tag{2}])(i)  = mean(wYtrue);
+            YvsX.(['median_' Tag{2}])(i)  = median(wYtrue);
+            YvsX.(['std' Tag{2}])(i)  = std(wYtrue);
+            YvsX.('cellNo')(i) = length(wYtrue);
+        end;
+        YvsX.H = H;
+        YvsX.errH = sqrt(H+1);
+        YvsX.X = X;
+        YvsX.Y = Y;
+        YvsX.Xtrue = Xtrue;
+        YvsX.Ytrue = Ytrue;
+        [DYnorm, DXnorm] = meshgrid(dYnorm, dXnorm);
+        Hnorm = H./DYnorm./DXnorm;
+        errHnorm = YvsX.errH./DYnorm./DXnorm;
+        YvsX.(['Hnorm_' Tag{1}]) = Hnorm./repmat(sum(H, 1), size(H, 1), 1);
+        YvsX.(['errHnorm_' Tag{1}]) = errHnorm./repmat(sum(H, 1), size(H, 1), 1);
+        YvsX.(['Hnorm_' Tag{2}]) = Hnorm./repmat(sum(H, 2), 1, size(H, 2));
+        YvsX.(['errHnorm_' Tag{2}]) = errHnorm./repmat(sum(H, 2), 1, size(H, 2));       
+        
+        procData.([Tag{1} '_' Tag{2}]) = YvsX;
+    end;
+    
+    if  strcmp(dataType, 'structure1D'), % data as loaded by LoadFACSfromFlowJoWorkspace_v function        
+        H = [];
+        errH = [];
+        Hnorm = [];
+        errHnorm = [];
+        meanD = [];
+        medianD = [];
+        geomeanD = [];
+        CVD = [];
+        cellNo = [];
+        
+        cdfvect = (0.01:0.01:1)';
+        cdfval = NaN(length(cdfvect), length(TagData));
+        
+        for i=1:length(TagData),
+            Htemp = hist(asinh(TagData(i).(Tag)/LinearRange), X);
+            cellNoTemp = sum(Htemp);
+            errHtemp = sqrt(Htemp+1)/sum(Htemp);
+            Htemp = Htemp/sum(Htemp);
+            Hnormtemp = Htemp./dXnorm;
+            errHnormtemp = errHtemp./dXnorm; %/sum(Hnormtemp);
+           % Hnormtemp = Hnormtemp/sum(Hnormtemp);
+%            HnormTemp = Htemp./dXnorm;
+            
+            H = [H Htemp(:)];
+            Hnorm = [Hnorm Hnormtemp(:)];
+            errH = [errH errHtemp(:)];
+            errHnorm = [errHnorm errHnormtemp(:)];
+            cellNo = [cellNo cellNoTemp];
+            
+    
+            meanD = [meanD mean(TagData(i).(Tag))];
+            medianD = [medianD median(TagData(i).(Tag))];
+            geomeanD = [geomeanD exp(mean(log(TagData(i).(Tag))))];
+            CVD = [CVD std(TagData(i).(Tag))/meanD(i)];
+            
+            if  cellNoTemp > 10,
+                 wYtrue = sort(TagData(i).(Tag), 'descend');
+                 cdfvect1 = (1:length(wYtrue))/length(wYtrue);             
+                 cdfvaltemp = interp1(cdfvect1, wYtrue, cdfvect, 'linear');
+                 cdfval(:, i) = cdfvaltemp(:);
+            end;
+        end;
+                    
+        procData.(Tag).H = H;
+        procData.(Tag).errH = errH;
+        procData.(Tag).Hnorm = Hnorm;
+        procData.(Tag).errHnorm = errHnorm;
+        procData.(Tag).X = X;
+        procData.(Tag).Xtrue = Xtrue; 
+        procData.(Tag).meanD = meanD;
+        procData.(Tag).medianD = medianD;
+        procData.(Tag).geomeanD = geomeanD;
+        procData.(Tag).CVD = CVD; 
+        procData.(Tag).LinearRange = LinearRange;
+        procData.(Tag).cellNo = cellNo;
+        
+        procData.(Tag).cdfvect = cdfvect;
+        procData.(Tag).cdfval = cdfval;
+        
+    end;  
+    
+    if  strcmp(dataType, 'structure2D'), % data as loaded by LoadFACSfromFlowJoWorkspace_v function        
+        H = [];
+        Hnorm = [];
+        meanD = [];
+        medianD = [];
+        geomeanD = [];
+        CVD = [];
+        cellNo = [];
+        
+        for j=1:length(TagData1),
+   
+            wData = asinh([TagData1(j).(Tag{1})/LinearRange(1) TagData2(j).(Tag{2})/LinearRange(2)]);
+            H = hist3(wData, {X Y});
+            %H = H/sum(H(:));
+            %Hnorm = H./dXnorm;
+
+            %get mean std etc values of Y in each X bin
+            J = ceil((wData(:, 1) - Xe(1))/dX);
+            clear YvsX
+            
+             YvsX.cdfvect = (0.01:0.01:1)';
+             YvsX.cdfval = NaN(length(YvsX.cdfvect), length(X));
+             
+            for i=1:length(X),
+                wXtrue = TagData1(j).(Tag{1})(J==i);
+                YvsX.(['mean_' Tag{1}])(i) = mean(wXtrue);
+                YvsX.(['median_' Tag{1}])(i)  = median(wXtrue);
+                YvsX.(['std' Tag{1}])(i)  = std(wXtrue);
+                wYtrue = TagData2(j).(Tag{2})(J==i);
+                YvsX.(['mean_' Tag{2}])(i)  = mean(wYtrue);
+                YvsX.(['median_' Tag{2}])(i)  = median(wYtrue);
+                YvsX.(['std' Tag{2}])(i)  = std(wYtrue);
+                YvsX.cellNo(i) = length(wYtrue);
+                          
+                if  YvsX.cellNo(i) > 10,
+                    wYtrue = sort(wYtrue, 'descend');
+                    cdfvect1 = (1:length(wYtrue))/length(wYtrue);             
+                    cdfval = interp1(cdfvect1, wYtrue, YvsX.cdfvect, 'linear');
+                    YvsX.cdfval(:, i) = cdfval(:);
+                end;
+                
+            end;
+            YvsX.(['mean_' Tag{1}]) = YvsX.(['mean_' Tag{1}])' ;
+            YvsX.(['median_' Tag{1}])  =  YvsX.(['median_' Tag{1}])';
+            YvsX.(['std' Tag{1}])  = YvsX.(['std' Tag{1}])';
+            YvsX.(['mean_' Tag{2}])  = YvsX.(['mean_' Tag{2}])';
+            YvsX.(['median_' Tag{2}])  = YvsX.(['median_' Tag{2}])';
+            YvsX.(['std' Tag{2}])  = YvsX.(['std' Tag{2}])';
+            YvsX.cellNo = YvsX.cellNo';
+            
+            YvsX.LinearRange = LinearRange;
+            YvsX.H = H;
+            YvsX.errH = sqrt(H+1);
+            YvsX.X = X;
+            YvsX.Y = Y;
+            YvsX.Xtrue = Xtrue;
+            YvsX.Ytrue = Ytrue;
+            [DYnorm, DXnorm] = meshgrid(dYnorm, dXnorm);
+            Hnorm = H./DYnorm./DXnorm;
+            errHnorm = YvsX.errH./DYnorm./DXnorm;
+            YvsX.(['Hnorm_' Tag{1}]) = Hnorm./repmat(sum(H, 1), size(H, 1), 1);
+            YvsX.(['errHnorm_' Tag{1}]) = errHnorm./repmat(sum(H, 1), size(H, 1), 1);
+            YvsX.(['Hnorm_' Tag{2}]) = Hnorm./repmat(sum(H, 2), 1, size(H, 2));
+            YvsX.(['errHnorm_' Tag{2}]) = errHnorm./repmat(sum(H, 2), 1, size(H, 2));       
+            procData.([Tag{1} '_' Tag{2}])(j) = YvsX;
+        end;
+    end;  
+    
+    
+    if strfind(dataType, '1D')
+        plot(X, H);
+        figure(gcf);
+        a1 = - (1:9)'*10.^(1:3);a1(:);
+        a1 = sort(- (1:9)'*10.^(1:2)); 
+        a2 =(1:9)'*10.^(1:5);
+        a = [sort(a1(:)); 0; a2(:)];
+
+        emptyStr = {''; ''; '';''; ''; '';''; ''};
+        XTickLabel = [emptyStr; '-100'; emptyStr; {''}; '0'; {''}; emptyStr; '100'; emptyStr; '1,000'; emptyStr; '10,000'; emptyStr; '100,000'; emptyStr];
+
+        XTicks = asinh(a/LinearRange);
+
+        set(gca, 'XTick', XTicks, 'XTickLabel', XTickLabel);
+    else
+        for j=1:length(procData.([Tag{1} '_' Tag{2}])),
+            loglog( procData.([Tag{1} '_' Tag{2}])(j).(['mean_' Tag{1}]), procData.([Tag{1} '_' Tag{2}])(j).(['mean_' Tag{2}]));
+            hold all;
+        end;
+        figure(gcf);
+        xlabel(Tag{1});
+        ylabel(Tag{2})
+        hold off;
+    end;
+end
+

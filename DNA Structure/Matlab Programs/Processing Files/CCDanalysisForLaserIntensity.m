@@ -1,0 +1,47 @@
+A = mean(UncutDyn3.ImageArray, 3);
+B = mean(CutDyn3.ImageArray, 3);
+
+plot(A(:), B(:), '.');
+figure(gcf);
+polyfit(A(:), B(:), 1)
+
+%%
+
+IntRange = [100 200];
+J = find((A > IntRange(1)) & (A < IntRange(2)) & (B > IntRange(1)) & (B < IntRange(2)));
+size(J)
+mean(A(J)-23)/mean(B(J) - 23)
+commandwindow
+
+
+%%
+A = A4uW;
+B =A16uW;
+[temp, J] = sort(A(:));
+smoothWin = 100;
+SmA = smooth(A(J), smoothWin);
+SmB = smooth(B(J), smoothWin);
+plot(SmA, SmB, '.');
+figure(gcf)
+title('select region of interest and hit any key');
+pause;
+p = polyfit(SmA(InAxes), SmB(InAxes), 1)
+commandwindow;
+plot(SmA, SmB, '.', SmA, polyval(p, SmA));
+figure(gcf)
+
+%%
+J = find((A4uW(:) > 60) & (A4uW(:) < 80));
+length(J)
+[mean(A4uW(J)) std(A4uW(J))]
+[mean(A8uW(J)) std(A8uW(J))]
+[mean(A12uW(J)) std(A12uW(J))]
+[mean(A16uW(J)) std(A16uW(J))]
+commandwindow
+
+pow = [4 8 12 16];
+Int = [mean(A4uW(J)) mean(A8uW(J)) mean(A12uW(J)) mean(A16uW(J))];
+
+loglog(pow, Int, 'o');
+figure(gcf);
+polyfit(pow, Int, 1)

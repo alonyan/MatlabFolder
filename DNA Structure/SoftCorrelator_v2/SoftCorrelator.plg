@@ -1,0 +1,44 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: SoftCorrelator - Win32 Release--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\DOCUME~1\owner\LOCALS~1\Temp\RSP20A.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /I "C:\MATLAB7\EXTERN\INCLUDE" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_WINDLL" /D "_AFXDLL" /D "_MBCS" /D "_USRDLL" /D "IBMPC" /D "MSVC" /D "MSWIND" /D "__STDC__" /Fp"Release/SoftCorrelator.pch" /YX /Fo"Release/" /Fd"Release/" /FD /c 
+"C:\Oleg\C programming\SoftCorrelator_v2\Correlator.cpp"
+"C:\Oleg\C programming\SoftCorrelator_v2\CountCorrelator.cpp"
+"C:\Oleg\C programming\SoftCorrelator_v2\SoftCorrelator.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\owner\LOCALS~1\Temp\RSP20A.tmp" 
+Creating temporary file "C:\DOCUME~1\owner\LOCALS~1\Temp\RSP20B.tmp" with contents
+[
+kernel32.lib user32.lib /nologo /subsystem:windows /dll /incremental:no /pdb:"Release/SoftCorrelator.pdb" /machine:I386 /def:".\SoftCorrelator.def" /out:"Release/SoftCorrelator.dll" /implib:"Release/SoftCorrelator.lib" 
+".\Release\Correlator.obj"
+".\Release\CountCorrelator.obj"
+".\Release\SoftCorrelator.obj"
+"..\..\..\MATLAB7\extern\lib\win32\microsoft\msvc60\libmat.lib"
+"..\..\..\MATLAB7\extern\lib\win32\microsoft\msvc60\libmex.lib"
+"..\..\..\MATLAB7\extern\lib\win32\microsoft\msvc60\libmx.lib"
+]
+Creating command line "link.exe @C:\DOCUME~1\owner\LOCALS~1\Temp\RSP20B.tmp"
+<h3>Output Window</h3>
+Compiling...
+Correlator.cpp
+C:\Oleg\C programming\SoftCorrelator_v2\Correlator.h(18) : fatal error C1083: Cannot open include file: 'mex.h': No such file or directory
+CountCorrelator.cpp
+C:\Oleg\C programming\SoftCorrelator_v2\Correlator.h(18) : fatal error C1083: Cannot open include file: 'mex.h': No such file or directory
+SoftCorrelator.cpp
+C:\Oleg\C programming\SoftCorrelator_v2\SoftCorrelator.cpp(12) : fatal error C1083: Cannot open include file: 'mex.h': No such file or directory
+Error executing cl.exe.
+
+
+
+<h3>Results</h3>
+SoftCorrelator.dll - 3 error(s), 0 warning(s)
+</pre>
+</body>
+</html>

@@ -1,0 +1,290 @@
+function A=LoadAutoCorrelation_v6(varargin)  %(path, filename)
+% a variant of LoadAutoCorrelation_v3, where averaging data was removed
+% only the data in the file are loaded into the correlation structure
+% all of the postprocessing will be done separately
+
+%rejection=1;
+if length(varargin)==0,
+    [filename, fpath, FILTERINDEX] = uigetfile('*.*', 'Pick binary correlation file');
+    deleteList = [];
+elseif length(varargin)==1,
+    fullFileName = varargin{1};
+elseif length(varargin)==2,
+    fpath = varargin{1};
+    filename=varargin{2};
+else
+    errordlg('too many parameters')
+end;
+
+fullFileName = strcat(fpath, filename);
+fid = fopen(fullFileName, 'r');
+
+%read version
+version = fread(fid, 1, 'uint16');
+
+if version ==0,
+    NrunsDemanded = fread(fid, 1, 'uint32');
+    NrunsPerformed = fread(fid, 1, 'uint32');
+    RunTime= fread(fid, 1, 'double');
+    CorrFuncLength = fread(fid, 1, 'int32');
+    CountRateLength = fread(fid, 1, 'int32');
+    
+    Lag=fread(fid, CorrFuncLength, 'double');
+    CorrFuncArray = fread(fid, [ CorrFuncLength, NrunsPerformed], 'double');
+    CountRateArray = fread(fid, [CountRateLength,  NrunsPerformed], 'double');
+    A.lag=Lag;
+    A.corrfunc=CorrFuncArray;
+    A.CR= CountRateArray;
+
+   
+    
+%    A=AverageBinary1(A);
+end;
+
+if version == 1,
+    DataType = fread(fid, 1, 'int32');
+    if DataType ~= 100,
+        error('Data type does not correspond to Correlation Function!');
+    end;
+    
+    LogBookSize=fread(fid, 1, 'int32');
+    A.LogBook = fscanf(fid, '%c', LogBookSize);
+    A.NrunsDemanded = fread(fid, 1, 'uint32');
+    A.NrunsPerformed = fread(fid, 1, 'uint32');
+    A.RunTime= fread(fid, 1, 'double');
+    ArraysLength=fread(fid, 4, 'int32');
+    
+    CorrArrays=fread(fid, [ ArraysLength(2), ArraysLength(1)], 'double');
+%    CorrArrays=CorrArrays';
+%    A.CorrArrays=CorrArrays;
+    A.lag=CorrArrays(:,1)*1000;%ms
+  
+%    A.lag=A.lag(:);
+    
+    A.AfterPulse=CorrArrays(:,2);
+%    A.AfterPulse = A.AfterPulse';
+    
+    A.corrfunc=CorrArrays(:, 3:(ArraysLength(1)/2+1))-1;
+ %   A.corrfunc=A.corrfunc';
+    
+    A.CF_CR=CorrArrays(:, (ArraysLength(1)/2+2):ArraysLength(1));
+%    A.CF_CR=A.CF_CR';
+    
+    A.trace=fread(fid, [ ArraysLength(4), ArraysLength(3)], 'double');
+%    A.trace=A.trace';
+
+     A.version =1;
+ %   B = AverageCorr_v2(A, rejection, filter);
+end;
+
+if version == 3,
+    DataType = fread(fid, 1, 'int32');
+    if DataType ~= 100,
+        error('Data type does not correspond to Correlation Function!');
+    end;
+    
+    B.TotalScans =fread(fid, 1, 'int32')
+    SpeedArrayLength = fread(fid, 1, 'int32');
+    B.SpeedArray = fread(fid, SpeedArrayLength, 'int32');
+    [B.SpeedArray]
+    LogBookSize=fread(fid, 1, 'int32');
+    B.LogBook = fscanf(fid, '%c', LogBookSize);
+    B.version = 3;
+   %B.CorrStuct(1:SpeedArrayLength).Speed = B.SpeedArray(1:SpeedArrayLength);
+    B.CorrStuctArray =cell(SpeedArrayLength, 1);
+  
+    for i = 1:B.TotalScans,
+        A.Speed = fread(fid, 1, 'uint32');
+        A.NrunsDemanded = fread(fid, 1, 'uint32');
+        A.NrunsPerformed = fread(fid, 1, 'uint32');
+        A.RunTime= fread(fid, 1, 'double');
+        ArraysLength=fread(fid, 4, 'int32');
+        A.LogBook = B.LogBook;
+    
+        CorrArrays=fread(fid, [ ArraysLength(2), ArraysLength(1)], 'double');
+        %size(CorrArrays)
+
+        A.lag=CorrArrays(:,1)*1000; %ms
+    
+        A.AfterPulse=CorrArrays(:,2);
+    
+        %A.corrfunc=CorrArrays(:, 3:(ArraysLength(1)/2+1));
+        A.corrfunc=CorrArrays(:, 4:(ArraysLength(1)+3)/2);
+   
+        A.CF_CR=CorrArrays(:, ((ArraysLength(1)+5)/2):ArraysLength(1));
+    
+        A.trace=fread(fid, [ ArraysLength(4), ArraysLength(3)], 'double');
+        
+        J=find(B.SpeedArray == A.Speed);
+        Len = length(B.CorrStuctArray{J});
+        B.CorrStuctArray{J}{Len+1} = A;
+
+    end; %for i = 1:TotalScans,
+    A = B;
+end;
+
+
+if (version == 4) | (version == 5),
+    DataType = fread(fid, 1, 'int32');
+    if DataType ~= 100,
+        error('Data type does not correspond to Correlation Function!');
+    end;
+    
+    B.TotalSaves =fread(fid, 1, 'int32');
+    B.Speed = fread(fid, 1, 'double');
+    LogBookSize=fread(fid, 1, 'int32');
+    B.LogBook = fscanf(fid, '%c', LogBookSize);
+    APSize = fread(fid, 2, 'int32');
+    B.lag = fread(fid, APSize(2), 'double');
+    B.AfterPulse = fread(fid, APSize(2), 'double');
+    if (version == 5),
+        B.AIClockDivider  = fread(fid, 1, 'double');
+    end;
+    B.version = version;
+    
+   A.corrfunc = [];
+   A.CF_CR   = [];
+   A.trace   = [];
+   A.Xcoord = [];
+   A.Ycoord = [];
+   A.Zcoord = [];
+
+   
+    for i = 1:B.TotalSaves,
+        A.NrunsDemanded   =  fread(fid, 1, 'uint32');
+        A.NrunsPerformed  =  fread(fid, 1, 'int32');
+        A.RunTime         =  fread(fid, 1, 'double');
+        ArraysLength      =  fread(fid, 4, 'int32');
+        A.LogBook         =  B.LogBook;
+        if version == 5, 
+            A.AIClockDivider  = B.AIClockDivider;
+        end;
+       
+        CorrArrays  =  fread(fid, [ ArraysLength(2), ArraysLength(1)], 'double');   
+        if i == 1,
+            A.corrfunc =  [A.corrfunc, CorrArrays(:, 2:(ArraysLength(1)+1)/2)] ;
+            A.CF_CR    =  [A.CF_CR, CorrArrays(:, (ArraysLength(1)+3)/2:ArraysLength(1))] ;
+        else
+            A.corrfunc =  [A.corrfunc, CorrArrays(:, 1:(ArraysLength(1)/2))] ;
+            A.CF_CR    =  [A.CF_CR, CorrArrays(:, (ArraysLength(1)/2+1):ArraysLength(1))] ;
+        end;
+        
+        Trace = fread(fid, [ArraysLength(4), ArraysLength(3)], 'double');
+        
+        if (size(Trace, 1) > size(A.trace, 1))&(i>1),
+            zeroPad = zeros(size(Trace, 1) - size(A.trace, 1), size(A.trace, 2));
+            A.trace = [A.trace; zeroPad];
+        elseif (size(Trace, 1) < size(A.trace, 1))&(i>1),
+            zeroPad = zeros(size(A.trace, 1) - size(Trace, 1), size(Trace, 2));
+            Trace = [Trace; zeroPad];
+        end;
+        
+        A.trace           =  [A.trace, Trace];
+        A.dt              =  fread(fid, 1, 'double');
+        CoordArrayLength  =  fread(fid, 2, 'int32');
+        CoordArray        =  fread(fid, [CoordArrayLength(2), CoordArrayLength(1)], 'double');%remove tag (before the dot-coma)
+       size(CoordArray)
+        %size(A.Xcoord)
+        A.Xcoord          =  [A.Xcoord; CoordArray(:, 1:3:size(CoordArray,2))];
+        A.Ycoord          =  [A.Ycoord;CoordArray(:, 2:3:size(CoordArray,2))];
+        A.Zcoord          =  [A.Zcoord; CoordArray(:, 3:3:size(CoordArray,2))];
+            
+        C = A;  
+    end;
+    
+    C.lag = B.lag*1000; %ms
+    C.AfterPulse = B.AfterPulse;
+    C.version = B.version;
+    
+    A = C;
+end;
+
+
+if (version == 7), % added image array for intensity monitoring
+    DataType = fread(fid, 1, 'int32');
+    if DataType ~= 100,
+        error('Data type does not correspond to Correlation Function!');
+    end;
+    
+    A.TotalSaves =fread(fid, 1, 'int32');
+    A.Speed = fread(fid, 1, 'double');
+    LogBookSize=fread(fid, 1, 'int32');
+    A.LogBook = fscanf(fid, '%c', LogBookSize);
+    APSize = fread(fid, 2, 'int32');
+    A.lag = fread(fid, APSize(2), 'double');
+    A.AfterPulse = fread(fid, APSize(2), 'double');
+    A.AIClockDivider  = fread(fid, 1, 'double');
+  
+    A.version = version;
+    %A.TotalSaves;
+   A.corrfunc = [];
+   A.CF_CR   = [];
+   A.trace   = [];
+   A.Xcoord = [];
+   A.Ycoord = [];
+   A.Zcoord = [];
+   A.ImageArray = [];
+   A.PhotoDiode = [];
+   
+    for i = 1:A.TotalSaves,
+        A.NrunsDemanded   =  fread(fid, 1, 'uint32');
+        A.NrunsPerformed  =  fread(fid, 1, 'int32');
+        A.RunTime         =  fread(fid, 1, 'double');
+        ArraysLength      =  fread(fid, 4, 'int32');
+       
+        CorrArrays  =  fread(fid, [ ArraysLength(2), ArraysLength(1)], 'double');   
+        if i == 1,
+            A.corrfunc =  [A.corrfunc, CorrArrays(:, 2:(ArraysLength(1)+1)/2)] ;
+            A.CF_CR    =  [A.CF_CR, CorrArrays(:, (ArraysLength(1)+3)/2:ArraysLength(1))] ;
+        else
+            A.corrfunc =  [A.corrfunc, CorrArrays(:, 1:(ArraysLength(1)/2))] ;
+            A.CF_CR    =  [A.CF_CR, CorrArrays(:, (ArraysLength(1)/2+1):ArraysLength(1))] ;
+        end;
+        
+        Trace = fread(fid, [ArraysLength(4), ArraysLength(3)], 'double');
+        
+        if (size(Trace, 1) > size(A.trace, 1))&(i>1),
+            zeroPad = zeros(size(Trace, 1) - size(A.trace, 1), size(A.trace, 2));
+            A.trace = [A.trace; zeroPad];
+        elseif (size(Trace, 1) < size(A.trace, 1))&(i>1),
+            zeroPad = zeros(size(A.trace, 1) - size(Trace, 1), size(Trace, 2));
+            Trace = [Trace; zeroPad];
+        end;
+        
+        A.trace           =  [A.trace, Trace];
+        A.dt              =  fread(fid, 1, 'double');
+        CoordArrayLength  =  fread(fid, 2, 'int32');
+        if CoordArrayLength > 0,
+            CoordArray        =  fread(fid, [CoordArrayLength(2), CoordArrayLength(1)], 'double');%remove tag (before the dot-coma)
+            size(CoordArray);
+
+            A.Xcoord          =  [A.Xcoord; CoordArray(:, 1)];
+            A.Ycoord          =  [A.Ycoord;CoordArray(:, 2)];
+            A.Zcoord          =  [A.Zcoord; CoordArray(:, 3)];
+            if CoordArrayLength(1) == 4,
+                A.PhotoDiode = [A.PhotoDiode; CoordArray(:, 4) ];
+            end;
+        end;
+        
+        A.v_um_s = sqrt(diff(A.Xcoord).^2+diff(A.Ycoord).^2)*8/(A.dt);
+        A.t_v = A.dt*(1:length(A.v_um_s));
+        A.t_v = A.t_v(:);
+        A.median_speed_um_s = median(A.v_um_s);
+        A.std_speed_um_s = std(A.v_um_s);     
+        A.vt_um  = A.lag *A.median_speed_um_s/1000; 
+        
+        ImageArrayLength  =  fread(fid, 3, 'int32');
+        ImageArray        =  fread(fid, [ImageArrayLength(3)*ImageArrayLength(2), ImageArrayLength(1)], 'double');%remove tag (before the dot-coma)
+        %size(A.Xcoord)
+        A.ImageArray = [A.ImageArray ImageArray];
+        A.ImageSize = [ImageArrayLength(3) ImageArrayLength(2)];      
+    end;
+    
+    A.lag = A.lag*1000; %ms
+ 
+end;
+
+fclose(fid);
+
+
+

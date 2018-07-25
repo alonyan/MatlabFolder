@@ -1,0 +1,16 @@
+function     [BETA,R,J,SIGMA,MSE] = nlinfit2D(X,Y, Z, modelFun, beta0, varargin) 
+% the function uses standard nlinfit procedure to fit 
+% function Z=f(X, Y)
+
+ [X, Y] = meshgrid(x, y); 
+ XY(:, :, 1) = X;
+ XY(:, :, 2) = Y;
+ 
+ [BETA,R,J,SIGMA,MSE] = nlinfit(XY, Z, @MyModel, beta0, varargin) ;
+   
+    function Z1 = MyModel(x, y, modelFun, beta)  
+        Z = modelFun(beta, X, Y);
+        Z1 = Z(:);
+    end   
+end
+

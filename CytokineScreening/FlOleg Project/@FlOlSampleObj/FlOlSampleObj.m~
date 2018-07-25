@@ -1,0 +1,92 @@
+classdef FlOlSampleObj < handle
+    properties
+        name
+        Population
+        PopulationHndl  % list of handles to populations/gates
+        SampleID
+        PrevObj 
+        NextObj
+        ParentHndl
+        SampleHndl
+        ObjList
+    end
+    
+    methods
+        function obj = FlOlSampleObj(varargin)
+            if (length(varargin)==1), % expect a structure with named fields
+                if isstruct(varargin{1}),
+                    SampleStruc = varargin{1};
+                    fldnames = fieldnames(SampleStruc);
+                    for i=1:length(fldnames),
+                       if ismember(fldnames{i}, properties('FlOlSampleObj')),
+                           obj.(fldnames{i}) = SampleStruc.(fldnames{i}); 
+                       else
+                           warning(['A field ' fldnames{i} ...
+                               ' does not have a counterpart in the Sample Object!!!'])
+                       end;
+
+                    end
+                else
+                    error('Expect a single stucture parameter with properly named fields!!!')
+                end;
+            elseif isempty(varargin), % create an empty Group object
+                obj.name  = '';
+                obj.Population = [];
+                obj.SampleID = [];
+            else
+                error('Expect a single stucture parameter with properly named fields!!!')
+            end
+        end % end constructor
+        
+        function obj = set(obj, varargin)
+            % expect pairs of 'Property' - property value
+            Jchar = find(cellfun(@ischar, varargin));
+            J = find(ismember(varargin(Jchar), properties('FlOlSampleObj')));
+            for i = Jchar(J),
+                PropName = varargin{i};
+                PropValue = varargin{i+1};
+                obj.(PropName) = PropValue;
+            end          
+        end
+        
+        function obj = insertPopulation(obj, newGate)
+            if (newGate.ParentHndl == obj), % if the population is derived directly from the Sample root
+                newGate.PrevGate = obj;
+                newGate.NextGate = obj.NextObj;
+                obj.NextObj.PrevGate = newGate;
+                obj.NextObj = newGate;
+                obj.Population = [newGate obj.Population];
+            elseif ismember(newGate.ParentHndl, obj.Population),
+                k = find(obj.Population == newGate.ParentHndl),
+                newGate.PrevGate = newGate.ParentHndl;
+                newGate.NextGate = obj.Population(k).NextGate; 
+                obj.Population(k).NextGate = newGate;
+                obj.Population(k).DependentGates = [obj.Population(k).DependentGates newGate];
+                newGate.NextGate.PrevGate = newGate;
+                obj.Population = [obj.Population(1:k) newGate obj.Population(k:end)]; 
+            else
+                error('Parent population is not found!!!')
+            end
+        end
+        
+        function obj = AddPopulation(obj, NewGate)
+%             if ~isempty(obj.ObjList),
+%                 obj.ObjList(end).NextObj =  NewObj;
+%                 NewObj.PrevObj = obj.ObjList(end);
+%             end; 
+
+            obj.PopulationHndl = [obj.PopulationHndl NewGate];
+        end
+        
+        function obj = AddSample(obj, NewSample)
+%             if ~isempty(obj.ObjList),
+%                 obj.ObjList(end).NextObj =  NewObj;
+%                 NewObj.PrevObj = obj.ObjList(end);
+%             end; 
+
+            obj.SampleHndl = [obj.SampleHndl NewSample];
+            obj.ObjList = [obj.ObjList NewSample.ObjList];
+        end
+        
+    end
+end

@@ -1,0 +1,251 @@
+function A = AverageCorr_v3(CFstruct, LoadingCorrelatorFiles, rejection, filter, deleteList, deltaAfterPulse, errorEstimate, varargin);
+% introduced on 18.04.06 and is based on AverageCorr_v2
+% modifications:
+% added parameter : LoadingCorrelatorFiles to decide whether corrfunc data should be cut and unity subtracted
+% corrfunc data should be cut and unity subtracted (LoadingCorrelatorFiles==1)
+% or data are already loaded into structures: (LoadingCorrelatorFiles==0)
+% added deletList variable
+% added 'dIdI' field and 'AverageAlldIdI' etc
+% added 'dIdI Variance' and 'Norm one' filter which requires range parameter e.g.
+% [2 4] in milliseconds
+% added 'CR' countrates fields for every trace
+% added two possibilites for error estimate:
+% 'Standard' - use of standard deviations, does not require any additional
+% parameters
+% 'Ratio to plateau' requires range parameter e.g. [2 4] in milliseconds
+% for estimation of the plateau level
+%
+% Added correction for noise in AfterPulse: polynomial fitting log(AP) vs log(lag)
+% gives parameters for smooth estimate
+%[p, s]=polyfit(log(lag(7:81)), log(AP(7:81)), 4);
+%
+% Added possibility to enter deltaAfterPulse vector
+% 07.08.06 Added 'HighCountTrace' filter 
+%
+% 29.04.10 added normalization of count rate and CF_CR by laser intensity
+% measured with PhotoDiode.  Can be switched off by passing 'NoPhotodiode'
+% string in varargin.
+
+p= [-0.00080064626033  -0.03307763277708  -0.55334463412661  -4.95500105168134  -7.96585072689563]; %parameters to calculate afterpulsing Roman's system
+if (CFstruct.version == 4) | (CFstruct.version == 5)  | (CFstruct.version == 7),
+    p = [-1.4699   -3.5533];    %Anat's system
+end;
+
+NofFiles=size(CFstruct.corrfunc, 2)
+A = CFstruct;
+
+if (LoadingCorrelatorFiles == 0),
+    maxi = size(CFstruct.corrfunc, 1);
+    A.corrfunc = CFstruct.corrfunc(1:maxi, :);
+elseif (LoadingCorrelatorFiles == 1),
+    [i, j] =find(CFstruct.corrfunc>0);
+    maxi=max(i)-1;
+    A.corrfunc = CFstruct.corrfunc(1:maxi, :); % - 1;
+else 
+    errordlg('wrong LoadingCorrelatorFiles');
+end;
+
+A.lag =CFstruct.lag(1:maxi);
+A.ImageArray = CFstruct.ImageArray;
+%if isfield(CFstruct, 'AfterPulseCalculated'),
+ %   A.AfterPulseCalculated = CFstruct.AfterPulseCalculated(1:maxi);
+%else
+    A.AfterPulseCalculated = exp(polyval(p, log(A.lag)));  
+%end;
+
+if length(deltaAfterPulse) > 0,
+    A.AfterPulseCalculated = A.AfterPulseCalculated + deltaAfterPulse,
+end;
+
+%A.APcorrection = A.AfterPulseCalculated - CFstruct.AfterPulse(1:maxi);
+%A.CF_CR=CFstruct.CF_CR(1:maxi, :) - repmat(A.APcorrection, 1, NofFiles);
+
+A.trace=CFstruct.trace;
+for i=1:NofFiles,
+    nonzero = find(A.trace(:, i)>0);
+    if (length(nonzero) == 0),
+        display(i),
+        errordlg(['zero counts in trace No_' num2str(i)]);
+    end;
+    A.CR(i) = mean(A.trace(nonzero, i));
+end;
+A.CF_CR = A.corrfunc.*repmat(A.CR, maxi, 1)-repmat(A.AfterPulseCalculated, 1, NofFiles);
+A.dIdI = A.CF_CR.*repmat(A.CR, maxi, 1);
+
+Nruns = size(A.CF_CR, 2);
+if isfield(A, 'PhotoDiode'),
+    if size(A.PhotoDiode) ~= [0 0],
+        A.PhotoDiodeMean = mean(A.PhotoDiode);
+        if isempty(find(strcmp(varargin, 'NoPhotodiode'))),
+            % normalizing CF_CR by laser light
+            PDlen = floor(length(A.PhotoDiode)/Nruns);
+            PhotoDiode = reshape(A.PhotoDiode(1:(PDlen*Nruns)),PDlen, Nruns);
+            meansPhotoDiode = mean(PhotoDiode);
+            A.CF_CR = A.CF_CR./repmat(meansPhotoDiode, maxi, 1)*A.PhotoDiodeMean;
+            A.CR = A.CR./meansPhotoDiode*A.PhotoDiodeMean;
+            A.dIdI = A.CF_CR.*repmat(A.CR, maxi, 1);
+        end;   
+    % coarse graining PhotoDiode data to 0.1s intervals
+        binsize = round(0.1/A.dt);
+        A = rmfield(A, 'PhotoDiode');
+        PDlen1 = floor(PDlen/binsize);
+        for i=1:NofFiles,
+            PD = reshape(PhotoDiode(1:(PDlen1*binsize), i), binsize, PDlen1);
+            A.PhotoDiode(:, i) = mean(PD)';
+        end;
+   
+        %laser correlations:
+        for i=1:NofFiles,
+            corr = SoftCorrelator_v2(PhotoDiode(:, i), 'PhCountCorr', A.dt*1000); % to ms
+            A.LaserCorr.lag = corr.lag;
+            A.LaserCorr.corrfunc(:, i) = corr.corrfunc;
+        end;
+        A.LaserCorr.AverageCF = mean(A.LaserCorr.corrfunc, 2);
+        A.LaserCorr.errorCF = std(A.LaserCorr.corrfunc, 0, 2)/sqrt(NofFiles);
+    end;
+end;
+
+
+
+indexgood=0;
+indexbad=0;
+
+if strcmp(filter, 'CF_CR Variance'),
+    Dgood = A.CF_CR(50:maxi,:);
+elseif strcmp(filter, 'dIdI Variance'),
+    Dgood = A.dIdI(50:maxi,:);
+elseif strcmp(filter, 'Norm one'),
+    range=varargin{1};
+    t=find((A.lag >= range(1)) & (A.lag <= range(2)));
+    
+    weights = mean(A.CF_CR(t, :));
+    Dgood = A.CF_CR(50:maxi,:)./repmat(weights, maxi-49,1);
+end;
+
+
+if  (strcmp(filter, 'CF_CR Variance') | strcmp(filter, 'dIdI Variance') | strcmp(filter, 'Norm one')),
+    DgoodWOdeleteList = Dgood;
+    DgoodWOdeleteList(:, deleteList)=[];    
+
+    Variance = std(DgoodWOdeleteList,0, 2).^2;
+    %meanDgood=mean(Dgood, 2);
+    medianDgood=median(DgoodWOdeleteList,2);
+    %MedianVariance = median((D - repmat(medianD, 1, NofFiles)).^2, 2);
+
+    for i=1:NofFiles,
+        score(i)=sum((Dgood(:, i)-medianDgood).^2./Variance(:))./length(medianDgood);
+    end;
+
+    UpperRejectionlevel= rejection; %1 + rejection*sqrt(2/length(meanDgood));
+    %LowerRejectionlevel= 1 - rejection*sqrt(2/length(meanDgood));
+
+    %scoreGood=score;
+    score(deleteList)=1000*UpperRejectionlevel;
+    Igood = find((score <= UpperRejectionlevel));
+    Ibad = find((score > UpperRejectionlevel));
+elseif strcmp(filter, 'LowCountTrace'),
+    score = A.CR;
+    score(deleteList)=1000*max(A.CR);
+    [y, I] = sort(score);
+    Igood = I(1: round(NofFiles*rejection));
+    Ibad = I(round(NofFiles*rejection)+1 : NofFiles);
+elseif strcmp(filter, 'HighCountTrace'),
+    score = A.CR;
+    score(deleteList)=-1000*max(A.CR);
+    [y, I] = sort(score, 'descend');
+    Igood = I(1: round(NofFiles*rejection));
+    Ibad = I(round(NofFiles*rejection)+1 : NofFiles);
+    
+else errordlg('wrong filter');
+end;
+
+A.corrfuncgood= A.corrfunc(:, Igood);
+A.tracegood=A.trace(:, Igood);
+A.CF_CRgood=A.CF_CR(:, Igood);
+A.dIdIgood = A.dIdI(:, Igood);
+
+if (Ibad > 0) ,
+    A.corrfuncbad= A.corrfunc(:, Ibad);
+    A.tracebad=A.trace(:, Ibad);    
+    A.CF_CRbad=A.CF_CR(:, Ibad);
+    A.dIdIbad = A.dIdI(:, Ibad);
+end;
+
+
+%AverageCorrFunc=mean(A.corrfuncgood, 2);
+nonzero = find(A.trace>0);
+A.countrate = mean(A.trace(nonzero));
+
+nonzero = find(A.tracegood > 0);
+A.countrateGood = mean(A.tracegood(nonzero));
+
+A.AverageCF_CR=mean(A.CF_CRgood, 2);
+A.AverageAllCF_CR=mean(A.CF_CR, 2);
+
+A.MedianCF_CR=median(A.CF_CRgood, 2);
+
+A.AveragedIdI=mean(A.dIdIgood, 2);
+A.AverageAlldIdI=mean(A.dIdI, 2);
+
+
+if strcmp(errorEstimate, 'Standard'),
+    A.errorCF_CR=std(A.CF_CRgood, 0, 2)/sqrt(length(Igood));
+    A.errorAllCF_CR=std(A.CF_CR, 0, 2)/sqrt(NofFiles);
+    A.errordIdI=std(A.dIdIgood, 0, 2)/sqrt(length(Igood));
+    A.errorAlldIdI=std(A.dIdI, 0, 2)/sqrt(NofFiles);
+elseif strcmp(errorEstimate, 'Ratio to plateau'),
+    range=varargin{1};
+    t=find((A.lag >= range(1)) & (A.lag <= range(2)));
+    
+    weights = mean(A.CF_CR(t, :));
+    dIdInorm = A.CF_CR./repmat(weights, maxi,1);
+    AvedIdInorm = A.AverageAllCF_CR/mean(A.AverageAllCF_CR(t));
+    A.errorAllCF_CR=mean(A.AverageAllCF_CR(t))*sqrt(sum(repmat(weights, maxi,1).*(dIdInorm - repmat(AvedIdInorm, 1, NofFiles)).^2, 2)/sum(weights)/NofFiles);
+    
+    
+    weights = mean(A.CF_CRgood(t, :));
+    dIdInorm = A.CF_CRgood./repmat(weights, maxi,1);
+    AvedIdInorm = A.AverageCF_CR/mean(A.AverageCF_CR(t));
+    A.errorCF_CR=mean(A.AverageCF_CR(t))*sqrt(sum(repmat(weights, maxi,1).*(dIdInorm - repmat(AvedIdInorm, 1, length(Igood))).^2, 2)/sum(weights)/length(Igood));
+    
+    
+    weights = mean(A.dIdI(t, :));
+    dIdInorm = A.dIdI./repmat(weights, maxi,1);
+    AvedIdInorm = A.AverageAlldIdI/mean(A.AverageAlldIdI(t));
+    A.errorAlldIdI=mean(A.AverageAlldIdI(t))*sqrt(sum(repmat(weights, maxi,1).*(dIdInorm - repmat(AvedIdInorm, 1, NofFiles)).^2, 2)/sum(weights)/NofFiles);
+ 
+    
+    weights = mean(A.dIdIgood(t, :));
+    dIdInorm = A.dIdIgood./repmat(weights, maxi,1);
+    AvedIdInorm = A.AveragedIdI/mean(A.AveragedIdI(t));
+    A.errordIdI=mean(A.AveragedIdI(t))*sqrt(sum(repmat(weights, maxi,1).*(dIdInorm - repmat(AvedIdInorm, 1, length(Igood))).^2, 2)/sum(weights)/length(Igood));
+
+end;
+
+
+    
+    
+if strcmp(filter, 'CF_CR Variance'),
+    A.WeightAverageCF=A.AverageCF_CR/A.countrateGood;
+    A.WeightAverageAllCF=A.AverageAllCF_CR/A.countrate;
+    A.errorWA_CF=A.errorCF_CR/A.countrateGood;
+    A.errorAllWA_CF=A.errorAllCF_CR/A.countrate;    
+elseif (strcmp(filter, 'dIdI Variance') | strcmp(filter, 'Norm one')),
+    A.WeightAverageCF=A.AveragedIdI/A.countrateGood^2;
+    A.WeightAverageAllCF=A.AverageAlldIdI/A.countrate^2;
+    A.errorWA_CF=A.errordIdI/A.countrateGood^2;
+    A.errorAllWA_CF=A.errorAlldIdI/A.countrate^2;    
+end;
+
+
+A.errorWA_CF=A.errorCF_CR/A.countrateGood;
+A.errorAllWA_CF=A.errorAllCF_CR/A.countrate;
+
+A.score=score;
+A.AfterPulse=CFstruct.AfterPulse;
+A.LogBook=CFstruct.LogBook;
+A.version = CFstruct.version;
+A.Igood = Igood;
+A.Ibad = Ibad;
+
+
