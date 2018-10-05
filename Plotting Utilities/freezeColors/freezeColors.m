@@ -154,7 +154,7 @@ for hh = cdatah',
     
     %replace original CData with true-color data
     if ~strcmp(g.Type,'patch'),
-        set(hh,'CData',realcolor);
+        set(hh,'CData',squeeze(realcolor));
     else
         set(hh,'faceVertexCData',permute(realcolor,[1 3 2]))
     end

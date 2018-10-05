@@ -1,14 +1,16 @@
 function [h ,Density,Bins, Color] = PlotColorCoded_v2(XX, YY, Jxx, Jyy, JumpX, JumpY)
 
-NbinsY = round((max(YY) - min(YY))/JumpX);
-NbinsX = round((max(XX) - min(XX))/JumpY);
+NbinsY = round((max(YY) - min(YY))/JumpY);
+NbinsX = round((max(XX) - min(XX))/JumpX);
 
 
 Jxy = Jxx&Jyy;
 %prepare colorcoding
 [DensityMatrix, Bins] = hist3([XX(Jxy) YY(Jxy)], [NbinsX NbinsY]);
-Color = interp2(Bins{2}, Bins{1}, DensityMatrix, YY(Jxy), XX(Jxy), '*linear');
-colormap('jet');
+DensityMatrix = DensityMatrix./mean(DensityMatrix(:));
+DensityMatrix = imgaussfilt(DensityMatrix,1);
+Color = interp2(Bins{2}, Bins{1}, DensityMatrix, YY(Jxy), XX(Jxy), 'spline');
+colormap(plasma);
 %h = scatter(XX(Jxy), YY(Jxy), 1.5, Color,'fill');
 h = fastscatter(XX(Jxy), YY(Jxy),Color, 'markersize',10);%AOY
 grid off;
