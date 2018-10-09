@@ -1,0 +1,22 @@
+function makeTileConfig(MD)
+configFileName = fullfile(MD.pth,'TileConfiguration.txt');
+fid = fopen( configFileName, 'wt' );
+fprintf( fid, '%s\n', '# Define the number of dimensions we are working on');
+fprintf( fid, '%s\n', 'dim = 3');
+fprintf( fid, '%s\n', '# Define the image coordinates (in pixels)');
+
+Channels = MD.getSpecificMetadata('Channel');
+Z = MD.getSpecificMetadata('Z','Channel',Channels{1});
+for i=1:numel(Channels):size(Z,1)*numel(Channels)
+    XYZ = [cell2mat(MD.getSpecificMetadataByIndex('XY',i)), cell2mat(MD.getSpecificMetadataByIndex('Z',i))]*MD.unique('PixelSize');
+    [name, ~] = MD.getImageFilename({'index'},{i});
+    TimeFrame = MD.getSpecificMetadataByIndex('frame',i);
+    TimeFrame = num2str(TimeFrame{1}-1);
+    fullfile(name, 'MMStack_Pos0.ome.tif');
+    pause(0.01)
+    stkStr = [num2str(i-1) '; ' TimeFrame '; (' num2str(XYZ(1)) ', ' num2str(XYZ(2)) ', ' num2str(XYZ(3)) ')' ];
+    fprintf( fid, '%s\n', stkStr);
+end
+
+fclose(fid);
+end
