@@ -9,7 +9,7 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     
     %get the data for this well in all channels
     i=frame;
-    MD=Metadata(fpath,[],1);   
+    MD=Metadata(fpath);   
     Channels = MD.unique('Channel');
     Data = struct;
     for i=1:numel(Channels)
@@ -56,8 +56,10 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     
     
     
+    
+  
     indOtherChannels = find(~strcmp(arrayfun(@(x) x.channel, FF,'uniformoutput',false),NucChannel));
-    for i=indOtherChannels
+    for i=1:numel(indOtherChannels)
         DataOther = Data(i).img;
         S = regionprops(CCVoronoi,DataOther,'MeanIntensity','PixelValues');
         Intensities = cat(1, S.MeanIntensity);
@@ -67,6 +69,10 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
         Ints90P{i}= Int90Prctile;
     end
 
+    
+    
+    
+    
     
     %Apply drift correction to centroids!
     Tforms = MD.getSpecificMetadata('driftTform','Position',Well, 'frame', i);
@@ -89,7 +95,7 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     welllbl.num = numel(NuclearIntensities);
 
 
-    frame
+    i
     
     
     

@@ -71,39 +71,43 @@ for j=1:numel(Wells)
     MD.Values = Vals;
 end
 MD.saveMetadataMat;
+files = dir([MD.pth filesep 'Metadata.txt']);
+if ~isempty(files)            
+        movefile([MD.pth filesep files(1).name], [MD.pth filesep 'Metadata_BAK.txt']);
+end
 MD=Metadata(fpath);
 
 
 
-%% New way to make movies
-j=7
-Channels = {'DeepBlue', 'Red'};
-Data = stkread(MD,'sortby','Channel','Channel',Channels, 'flatfieldcorrection', false,'blindflatfield',true, 'Position', Wells{j},'resize', 0.5,'register',true);
-
-stkshow(Data);
-PixelSize = MD.getSpecificMetadataByIndex('PixelSize', 1);
-PixelSize = PixelSize{1};
-
-MIJ.selectWindow('Data');
-MIJ.run('Stack to Hyperstack...', ['order=xytcz channels=' num2str(numel(Channels)) ' slices=1 frames=' num2str(size(Data,3)/numel(Channels)) ' display=Composite']); %Make into xytc hyperstack
-MIJ.run('Properties...', ['channels=' num2str(numel(Channels)) ' slices=1 frames=' num2str(size(Data,3)/numel(Channels)) ' unit=um pixel_width=' num2str(PixelSize) ' pixel_height=' num2str(PixelSize) ' voxel_depth=1.0000']);%set pixel size
-MIJ.run('Scale Bar...', 'width=100 height=8 font=28 color=White background=None location=[Lower Right] bold overlay');%add scale bar
-MIJ.run('Time Stamper', ['starting=0 interval=0.5 x=0 y=50 font=50 decimal=1 anti-aliased or=h overlay']);%add time stamp
-
-f = figure;%wait for user to adjust colors, intensity, etc
-set(f,'Name','Please adjust brightness and contrast','Position',[360 538 240 60],'NumberTitle', 'off', 'Toolbar','none','Menubar','none')
-h = uicontrol('Position',[20 20 200 40],'String','OK',...
-              'Callback','uiresume(gcbf)');
-uiwait(f); 
-close(f);
-%% save
-inds = MD.getIndex({'Position'}, {Wells{j}});
-savepath = MD.getImageFilename({'index'}, {inds(1)});
-sepInd = strfind(savepath, filesep);
-savepath = savepath(1:sepInd(end));
-MIJ.run('AVI... ', ['compression=JPEG frame=14 save=' sprintf('%sMovie_%s%s',savepath,Wells{j},'.avi')]);
-
- 
+% %% New way to make movies
+% j=7
+% Channels = {'DeepBlue', 'Red'};
+% Data = stkread(MD,'sortby','Channel','Channel',Channels, 'flatfieldcorrection', false,'blindflatfield',true, 'Position', Wells{j},'resize', 0.5,'register',true);
+% 
+% stkshow(Data);
+% PixelSize = MD.getSpecificMetadataByIndex('PixelSize', 1);
+% PixelSize = PixelSize{1};
+% 
+% MIJ.selectWindow('Data');
+% MIJ.run('Stack to Hyperstack...', ['order=xytcz channels=' num2str(numel(Channels)) ' slices=1 frames=' num2str(size(Data,3)/numel(Channels)) ' display=Composite']); %Make into xytc hyperstack
+% MIJ.run('Properties...', ['channels=' num2str(numel(Channels)) ' slices=1 frames=' num2str(size(Data,3)/numel(Channels)) ' unit=um pixel_width=' num2str(PixelSize) ' pixel_height=' num2str(PixelSize) ' voxel_depth=1.0000']);%set pixel size
+% MIJ.run('Scale Bar...', 'width=100 height=8 font=28 color=White background=None location=[Lower Right] bold overlay');%add scale bar
+% MIJ.run('Time Stamper', ['starting=0 interval=0.5 x=0 y=50 font=50 decimal=1 anti-aliased or=h overlay']);%add time stamp
+% 
+% f = figure;%wait for user to adjust colors, intensity, etc
+% set(f,'Name','Please adjust brightness and contrast','Position',[360 538 240 60],'NumberTitle', 'off', 'Toolbar','none','Menubar','none')
+% h = uicontrol('Position',[20 20 200 40],'String','OK',...
+%               'Callback','uiresume(gcbf)');
+% uiwait(f); 
+% close(f);
+% %% save
+% inds = MD.getIndex({'Position'}, {Wells{j}});
+% savepath = MD.getImageFilename({'index'}, {inds(1)});
+% sepInd = strfind(savepath, filesep);
+% savepath = savepath(1:sepInd(end));
+% MIJ.run('AVI... ', ['compression=JPEG frame=14 save=' sprintf('%sMovie_%s%s',savepath,Wells{j},'.avi')]);
+% 
+%  
 
 %% Make results object
 
@@ -116,32 +120,40 @@ R.analysisScript=fullfile([fpath filesep 'AnalysisScriptTemplate.m']);%Change th
 R.reportPth = [BaseStr 'Reports' filesep 'Alon' filesep Project filesep Dataset];
 
 
+% define nuclear channel and channel to use for tracking 
+NucChannel = 'DeepBlue'; %Channel to segment on
+TrackChannel = 'Red'; %"smoothness" channel, usually virus
+
+%% Calculate flat fields
+    pos = Wells{1};
+    Channels = MD.unique('Channel');
+    FF = struct;
+    for i=1:numel(Channels)
+        img = stkread(MD,'Channel',Channels{i}, 'flatfieldcorrection', false,'blindflatfield',false, 'frame', 1, 'Position', pos,'register',false);
+        FFimg = awt2Dlite(img,8);
+        FF(i).img = squeeze(FFimg(:,:,:,end));
+        FF(i).channel = Channels{i};
+    end
 %% Add WellsLbl to results, to single cell segmentation
+
 for WellNum=1:numel(Wells)
     pos = Wells{WellNum};
     Welllbl = cell(numel(frames),1);
     
-    FFBlue = stkread(MD,'Channel','DeepBlue', 'flatfieldcorrection', false,'blindflatfield',false, 'frame', 1, 'Position', pos,'register',false);
-    FFRed = stkread(MD,'Channel','Red', 'flatfieldcorrection', false,'blindflatfield',false, 'frame', 1, 'Position', pos,'register',false);
-    FFBlue = awt2Dlite(FFBlue,8);
-    FFBlue = squeeze(FFBlue(:,:,:,end));
-    FFRed = awt2Dlite(FFRed,8);
-    FFRed = squeeze(FFRed(:,:,:,end));
-
     parfor i=R.Frames'
-        Welllbl{i} = WellsConstructor(fpath, pos,i,FFBlue,FFRed);
+        Welllbl{i} = WellsConstructor(fpath, pos,i,FF,NucChannel);
     end
     R.setWellsLbl(Welllbl,pos)
 end
 
  %% Link adjecent frames
 for WellNum=1:numel(R.PosNames)  
-    R.Link(R.PosNames(WellNum))
+    R.Link(R.PosNames(WellNum),TrackChannel)
 end
 
 %% Close gaps
 for WellNum=1:numel(R.PosNames)
-    R.closeGaps(R.PosNames(WellNum))
+    R.closeGaps(R.PosNames(WellNum),TrackChannel,NucChannel)
 end
 
 %R.saveResults
@@ -152,6 +164,8 @@ end
 
 
 %% Calculate more features about single cell tracks
+
+
 for WellNum=1:numel(Wells)
     Tracks = R.getTracks(R.PosNames{WellNum}); 
     
@@ -161,8 +175,13 @@ for WellNum=1:numel(Wells)
     
     
     WellCells = R.getWellsLbl(R.PosNames{WellNum});
-    VirusIntensities = cellfun(@(x) x.Virus90Prctile, WellCells,'UniformOutput', false);
-    NuclearIntensities = cellfun(@(x) x.Nuclei90Prctile, WellCells,'UniformOutput', false);
+    
+    indtrckChnl = find(strcmp(TrackChannel,WellCells{1}.channels));
+    indNucChnl = find(strcmp(NucChannel,WellCells{1}.channels));
+    
+    
+    VirusIntensities = cellfun(@(x) x.Int90Prctile{indtrckChnl}, WellCells,'UniformOutput', false);
+    NuclearIntensities = cellfun(@(x) x.Int90Prctile{indNucChnl}, WellCells,'UniformOutput', false);
 
     for i=1:numel(Tracks)
         i
@@ -185,8 +204,8 @@ for WellNum=1:numel(Wells)
     
     
     WellCells = R.getWellsLbl(R.PosNames{WellNum});
-    ThreshVirus = mean(WellCells{1}.Virus90Prctile)+2*std(WellCells{1}.Virus90Prctile);
-    ThreshNuc = mean(WellCells{1}.Nuclei90Prctile)+2*std(WellCells{1}.Nuclei90Prctile);
+    ThreshVirus = mean(WellCells{1}.Int90Prctile{indtrckChnl})+2*std(WellCells{1}.Int90Prctile{indtrckChnl});
+    ThreshNuc = mean(WellCells{1}.Int90Prctile{indNucChnl})+2*std(WellCells{1}.Int90Prctile{indNucChnl});
 
     for i=1:numel(Tracks)
         Tracks(i).Infected = Smoothing(Tracks(i).VirusTrack)>ThreshVirus;
@@ -198,96 +217,96 @@ for WellNum=1:numel(Wells)
     R.setTracks(Tracks,R.PosNames{WellNum})
 end
     clearvars NuclearTrack  VirusTrack Tracks;
-%R.saveResults
+R.saveResults
 
-
-%% 
-dtinfdeathCell = {};
-for WellNum=1:numel(Wells)
-Tracks = R.getTracks(R.PosNames{WellNum});
-
-Jinfdie = intersect(R.TracksThatDie(R.PosNames{WellNum}),R.TracksThatGetInfected(R.PosNames{WellNum}));
-
-dtinfdeath = NaN(numel(Jinfdie),1);
-for i=1:numel(Jinfdie)
-dtinfdeath(i) = find(diff(Tracks(Jinfdie(i)).Dead)==1,1,'last')-find(Tracks(Jinfdie(i)).Infected,1);
-end
-numel(R.TracksThatGetInfected(R.PosNames{WellNum}));
-mean(dtinfdeath)
-dtinfdeathCell{WellNum} = dtinfdeath;
-end
-
-%% Plot for jen
-close all
-figure('Position',[82 318 1024 280],'color','w')
-subplot(1,4,1)
-h = histogram(dtinfdeathCell{12},10,'Normalization','pdf','FaceColor','k')
-dim = [.15 .63 .3 .3];
-hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{12})/2,2) 'h'],'LineStyle','none')
-hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['No TNF'],'LineStyle','none')
-set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
-ylabel('pdf')
-xlabel('Time between infection and death(h)')
-hbx = annotation('arrow',[0.1, 0.4],[0.05,0.05])
-
-edges = h.BinEdges;
-subplot(1,4,2)
-
-h4 = histogram(dtinfdeathCell{6},edges,'Normalization','pdf','FaceColor','c')
-dim = [.35 .63 .3 .3];
-hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{6})/2,2) 'h'],'LineStyle','none')
-hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['0.3 ng/ml'],'LineStyle','none')
-set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
-
-subplot(1,4,3)
-
-h3 = histogram(dtinfdeathCell{4},edges,'Normalization','pdf','FaceColor','r')
-dim = [.56 .63 .3 .3];
-hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{4})/2,2)  'h'],'LineStyle','none')
-hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['3 ng/ml'],'LineStyle','none')
-set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
-
-subplot(1,4,4)
-
-h2 = histogram(dtinfdeathCell{2},edges,'Normalization','pdf','FaceColor','b')
-dim = [.77 .63 .3 .3];
-hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{2})/2,2) 'h'],'LineStyle','none')
-hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['30 ng/ml'],'LineStyle','none')
-set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
-
-shg
-set(gcf, 'PaperPositionMode','auto','InvertHardCopy','off')
-print(gcf,'-dpng','-r300',['/bigstore/Images2018/Jen/NFkBDynamics/HSV-1SpreadwTNF_2018Aug21/acq_4/' 'HistoPlot']);
-%%
-j=1
-pos = R.PosNames{j};
-WellLbl = R.getWellsLbl(pos)
-fpath='/bigstore/Images2018/Jen/NFkBDynamics/HSV-1SpreadwTNF_2018Aug21/acq_4/';
-outputVideo = VideoWriter(sprintf('%sSingleCellScatter_%s%s',fpath,pos,'.avi'));
-outputVideo.FrameRate = 14;
-open(outputVideo)
-
-for i=1:181
-cla
-WellLbl{i}.scatter;
-freezeColors
-hold on
-WellLbl{i}.scatter('channel','nuclei')
-drawnow; shg
-pause(0.01)
-    frame = getframe(gcf);
-    im = frame2im(frame);
-
-    writeVideo(outputVideo,im);
-end
-close(outputVideo)
-%% single tracks
-j=6
-pos = R.PosNames{j};
-
-indinf = R.TracksThatGetInfected(pos)
-i=9
-R.plotCompTrack(pos,indinf(i))
-%%
-set(gcf, 'PaperPositionMode','auto','InvertHardCopy','off')
-print(gcf,'-dpng','-r300',['/bigstore/Images2018/Jen/NFkBDynamics/HSV-1SpreadwTNF_2018Aug21/acq_4/' 'SingleTrack' pos '_track' num2str(indinf(i))]);
+% 
+% %% 
+% dtinfdeathCell = {};
+% for WellNum=1:numel(Wells)
+% Tracks = R.getTracks(R.PosNames{WellNum});
+% 
+% Jinfdie = intersect(R.TracksThatDie(R.PosNames{WellNum}),R.TracksThatGetInfected(R.PosNames{WellNum}));
+% 
+% dtinfdeath = NaN(numel(Jinfdie),1);
+% for i=1:numel(Jinfdie)
+% dtinfdeath(i) = find(diff(Tracks(Jinfdie(i)).Dead)==1,1,'last')-find(Tracks(Jinfdie(i)).Infected,1);
+% end
+% numel(R.TracksThatGetInfected(R.PosNames{WellNum}));
+% mean(dtinfdeath)
+% dtinfdeathCell{WellNum} = dtinfdeath;
+% end
+% 
+% %% Plot for jen
+% close all
+% figure('Position',[82 318 1024 280],'color','w')
+% subplot(1,4,1)
+% h = histogram(dtinfdeathCell{12},10,'Normalization','pdf','FaceColor','k')
+% dim = [.15 .63 .3 .3];
+% hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{12})/2,2) 'h'],'LineStyle','none')
+% hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['No TNF'],'LineStyle','none')
+% set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
+% ylabel('pdf')
+% xlabel('Time between infection and death(h)')
+% hbx = annotation('arrow',[0.1, 0.4],[0.05,0.05])
+% 
+% edges = h.BinEdges;
+% subplot(1,4,2)
+% 
+% h4 = histogram(dtinfdeathCell{6},edges,'Normalization','pdf','FaceColor','c')
+% dim = [.35 .63 .3 .3];
+% hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{6})/2,2) 'h'],'LineStyle','none')
+% hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['0.3 ng/ml'],'LineStyle','none')
+% set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
+% 
+% subplot(1,4,3)
+% 
+% h3 = histogram(dtinfdeathCell{4},edges,'Normalization','pdf','FaceColor','r')
+% dim = [.56 .63 .3 .3];
+% hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{4})/2,2)  'h'],'LineStyle','none')
+% hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['3 ng/ml'],'LineStyle','none')
+% set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
+% 
+% subplot(1,4,4)
+% 
+% h2 = histogram(dtinfdeathCell{2},edges,'Normalization','pdf','FaceColor','b')
+% dim = [.77 .63 .3 .3];
+% hbx = annotation('textbox',dim,'String',['mean = ' num2str(mean(dtinfdeathCell{2})/2,2) 'h'],'LineStyle','none')
+% hbx = annotation('textbox',dim+[0.02 0.05 0 0],'String',['30 ng/ml'],'LineStyle','none')
+% set(gca,'xtick',[-100:50:100], 'xticklabels',[-100:50:100]/2)
+% 
+% shg
+% set(gcf, 'PaperPositionMode','auto','InvertHardCopy','off')
+% print(gcf,'-dpng','-r300',['/bigstore/Images2018/Jen/NFkBDynamics/HSV-1SpreadwTNF_2018Aug21/acq_4/' 'HistoPlot']);
+% %%
+% j=1
+% pos = R.PosNames{j};
+% WellLbl = R.getWellsLbl(pos)
+% fpath='/bigstore/Images2018/Jen/NFkBDynamics/HSV-1SpreadwTNF_2018Aug21/acq_4/';
+% outputVideo = VideoWriter(sprintf('%sSingleCellScatter_%s%s',fpath,pos,'.avi'));
+% outputVideo.FrameRate = 14;
+% open(outputVideo)
+% 
+% for i=1:181
+% cla
+% WellLbl{i}.scatter;
+% freezeColors
+% hold on
+% WellLbl{i}.scatter('channel','nuclei')
+% drawnow; shg
+% pause(0.01)
+%     frame = getframe(gcf);
+%     im = frame2im(frame);
+% 
+%     writeVideo(outputVideo,im);
+% end
+% close(outputVideo)
+% %% single tracks
+% j=6
+% pos = R.PosNames{j};
+% 
+% indinf = R.TracksThatGetInfected(pos)
+% i=9
+% R.plotCompTrack(pos,indinf(i))
+% %%
+% set(gcf, 'PaperPositionMode','auto','InvertHardCopy','off')
+% print(gcf,'-dpng','-r300',['/bigstore/Images2018/Jen/NFkBDynamics/HSV-1SpreadwTNF_2018Aug21/acq_4/' 'SingleTrack' pos '_track' num2str(indinf(i))]);

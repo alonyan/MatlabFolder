@@ -171,26 +171,29 @@ classdef MultiPositionSingleCellVirusResults < MultiPositionResults
         
         
         
-        function Link(R,pos)
+        function Link(R,pos,trckChnl)
             %% Now, we'll see how well we can track between adjacent frames (lap)
             
             %init assignment matrices
             %Link12MatCell = {};
             Link21MatCell = {};
             
-            searchRadius = 35;
+            searchRadius = 45;
            % maxAmpRatio = 1.5;
             WellCells = R.getWellsLbl(pos);
             inds = find(cellfun(@(x) ~isempty(x), WellCells));
+            indtrckChnl = find(strcmp(trckChnl,WellCells{1}.channels));
             
             for i=inds(1:end-1)';
                 i
                 %build cost function
                 Dists  = createDistanceMatrix(WellCells{i}.Centroids,WellCells{i+1}.Centroids);
 
-                a1 = repmat(WellCells{i}.Virus90Prctile,1,numel(WellCells{i+1}.Virus90Prctile));
-                a2 = repmat(WellCells{i+1}.Virus90Prctile',numel(WellCells{i}.Virus90Prctile),1);
+                
+                a1 = repmat(WellCells{i}.Int90Prctile{indtrckChnl},1,numel(WellCells{i+1}.Int90Prctile{indtrckChnl}));
+                a2 = repmat(WellCells{i+1}.Int90Prctile{indtrckChnl}',numel(WellCells{i}.Int90Prctile{indtrckChnl}),1);
                 VirDists = abs(a2-a1);
+                costMat = Dists+10^3*VirDists;%;
                 
                 %divide the larger of the two amplitudes by the smaller value
  %               ampRatio = a1./a2;
@@ -198,9 +201,6 @@ classdef MultiPositionSingleCellVirusResults < MultiPositionResults
  %               ampRatio(J) = 1./ampRatio(J);
 
 
-                
-                
-                costMat = Dists+10^3*VirDists;%;
                 
                 costMat(Dists>searchRadius) = 0;
    %             costMat(ampRatio>maxAmpRatio) = 0;
@@ -224,10 +224,14 @@ classdef MultiPositionSingleCellVirusResults < MultiPositionResults
             R.setWellsLbl(WellCells,pos)
         end
         
-        function closeGaps(R,pos)
+        function closeGaps(R,pos,trckChnl,NucChnl)
             mergeSplit = 0;
 
             WellCells = R.getWellsLbl(pos);
+            indtrckChnl = find(strcmp(trckChnl,WellCells{1}.channels));
+            indNucChnl = find(strcmp(NucChnl,WellCells{1}.channels));
+
+            
             inds = find(cellfun(@(x) ~isempty(x), WellCells));
             %% Book keeping: Make all tracks fragmants
             numFeatures = cellfun(@(x) x.num, WellCells(inds))';
@@ -322,8 +326,8 @@ classdef MultiPositionSingleCellVirusResults < MultiPositionResults
                 n = WellCells{i}.num;
                 movieInfo(i).xCoord = [WellCells{i}.Centroids(:,1) zeros(n,1)];
                 movieInfo(i).yCoord = [WellCells{i}.Centroids(:,2) zeros(n,1)];
-                movieInfo(i).zCoord = [WellCells{i}.Virus90Prctile  zeros(n,1)];
-                movieInfo(i).amp = [WellCells{i}.Nuclei90Prctile  zeros(n,1)];
+                movieInfo(i).zCoord = [WellCells{i}.Int90Prctile{indtrckChnl}  zeros(n,1)];
+                movieInfo(i).amp = [WellCells{i}.Int90Prctile{indNucChnl}  zeros(n,1)];
                 movieInfo(i).num = WellCells{i}.num;
             end
             probDim = 3;
@@ -1176,7 +1180,7 @@ classdef MultiPositionSingleCellVirusResults < MultiPositionResults
             Ch(1).YLabel.String = 'Hoechst (a.u.)';
             Ch(2).YLabel.String = 'HSV (a.u.)';
             Ch(1).YLim = [0 .8];
-            Ch(2).YLim = [.08 .15];
+            Ch(2).YLim = [.05 .15];
             
         end
         function J = TracksThatGetInfected(R,pos)

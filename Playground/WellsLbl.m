@@ -7,10 +7,9 @@ classdef WellsLbl < handle %class of single cell processing of a whole cornea at
         
         
         Centroids
-        NuclearIntensities
-        VirusIntensities
-        Virus90Prctile
-        Nuclei90Prctile
+        Intensities
+        Int90Prctile
+        channels
         nzAreas
         Areas
         num
