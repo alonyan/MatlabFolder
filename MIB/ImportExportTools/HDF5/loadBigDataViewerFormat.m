@@ -53,7 +53,7 @@ if ~isfield(options, 'waitbar');    options.waitbar = 1; end
 if options.waitbar; wb = waitbar(0, sprintf('Loading HDF5 file structure\nPlease wait...'), 'Name', 'Loading HFD5...'); end
 
 info = h5info(filename);
-offsetIndex = find(ismember({info.Groups(:).Name}, '/t00000') == 1);  % index of the first timepoint
+offsetIndex = find(~cellfun(@isempty,regexp({info.Groups(:).Name},'/t')));  % index of the first timepoint %change to allow partial load AOY
 
 if isempty(img_info)   % when no img_info, populate it from the HDF5 file
     % initialize default
