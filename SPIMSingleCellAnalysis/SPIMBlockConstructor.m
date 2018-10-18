@@ -26,19 +26,21 @@ function Blocklbl = SPIMBlockConstructor(fpath, partitionInfo,timepoint,tile)
     
     %Load channels
     options = struct('level', 1,'waitbar',0);
-    Channels = cell(numel(partNameList),1);
+    %Channels = cell(numel(partNameList),1);
     Ints = cell(numel(partNameList),1);
     Ints90P = cell(numel(partNameList),1);
     
-    for i=1:numel(partNameList);
-        Data = loadBigDataViewerFormat([fpath partNameList{i}],options);
-        Data = squeeze(single(Data)/2^12);
-        Channels{i} = Data;
-    end
+    %for i=1:numel(partNameList);
+    %    Data = loadBigDataViewerFormat([fpath partNameList{i}],options);
+    %    Data = squeeze(single(Data)/2^12);
+    %    Channels{i} = Data;
+    %end
 
     %Start calling cells, look at Nuc channel
     indChNuc = find(strcmp(channelNames,NuclearChannel));
-    Data = Channels{indChNuc};
+    %Data = Channels{indChNuc};
+    Data = loadBigDataViewerFormat([fpath partNameList{indChNuc}],options);
+    Data = squeeze(single(Data)/2^12);
     Blocklbl.ImageDims = size(Data);
 
     % Gaussian smoothen and find regional max
@@ -82,7 +84,9 @@ function Blocklbl = SPIMBlockConstructor(fpath, partitionInfo,timepoint,tile)
     %Now the other channels
     indOtherChannels = find(~strcmp(channelNames,NuclearChannel));
     for i=indOtherChannels
-        Data = Channels{i};
+        %Data = Channels{i};
+        Data = loadBigDataViewerFormat([fpath partNameList{indChNuc}],options);
+        Data = squeeze(single(Data)/2^12);
         S = regionprops(CC,Data,'MeanIntensity','PixelValues');
         Intensities = cat(1, S.MeanIntensity);
         Int90Prctile = arrayfun(@(x) prctile(x.PixelValues(x.PixelValues~=0),90),S);

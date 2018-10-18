@@ -27,8 +27,8 @@ imgGRegMax = imregionalmax(imgG);
 
 
 %
-[xx,yy,zz] = ndgrid(-3:3);
-nhood = sqrt(xx.^2 + yy.^2+zz.^2) <= 3.0;
+[xx,yy,zz] = ndgrid(-4:4);
+nhood = sqrt(xx.^2 + yy.^2+zz.^2) <= 4.0;
 ExpandedPeaks = imdilate(imgGRegMax,nhood);
 
 %
@@ -53,7 +53,7 @@ imgG = imgaussian3(I,[1 1]);
 [Gx,Gy,Gz] = gradient(imgG);
 gradmagI = sqrt(Gx.^2+Gy.^2+Gz.^2);
 
-tic; gradmagI = imimposemin(gradmagI, nuclearSeeds | cellBoxes);toc
+tic; gradmagI(nuclearSeeds | cellBoxes)=0;toc
 L = pseudowatershed3D(gradmagI);
 
 nuclearSeedsSignal = I.*nuclearSeeds;
