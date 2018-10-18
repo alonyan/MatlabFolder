@@ -1,0 +1,3 @@
+options = struct('level', 1,'waitbar',0);
+I = loadBigDataViewerFormat('/RazorScopeData/RazorScopeSets/Jen/CorneaHSV/HSVSpread_p65V_2018Aug17/acq_1/hdf5_dataset-00-00.h5',options);
+I = squeeze(single(I)/2^12);
