@@ -137,8 +137,10 @@ if nRows > 1
             x = get(get(handles.bar(col),'children'),'xdata');
         else
             % New graphics:
-            x =  handles.bar(col).XData + [handles.bar(col).XOffset];
+            hBar(col).XOffset
+            x =  hBar(col).XData + hBar(col).XOffset;
         end
+
         % Use the mean x values to call the standard errorbar fn; the
         % errorbars will now be centred on each bar; these are in ascending
         % order so use xOrder to ensure y values and errors are too:

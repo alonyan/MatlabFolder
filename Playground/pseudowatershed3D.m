@@ -32,7 +32,7 @@ clear augim minim shiftim x y z u v w i j k;
 % propagate links
 newlink = linkim(linkim);
 counter=0;
-while any(newlink(:)~=linkim(:)) && counter<3
+while any(newlink(:)~=linkim(:)) && counter<4
     linkim = newlink;
     newlink = linkim(linkim);
     counter=counter+1;

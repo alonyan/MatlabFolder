@@ -1,6 +1,6 @@
 function y=YukavaFit(beta, x)
-beta1=beta(1);
-beta2=beta(2);
-beta3 = beta(3);
-y=beta1*exp(- beta2*x)./x + beta(3);
+amp=beta(1);
+xi=beta(2);
+bg = beta(3);
+y=amp*exp(- xi*x)./x + bg;
 

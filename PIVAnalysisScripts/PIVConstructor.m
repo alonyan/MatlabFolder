@@ -1,9 +1,10 @@
-function PIVlbl = PIVConstructor(pth, Well)
+function PIVlbl = PIVConstructor(pth, Well,varargin)
+channel = ParseInputs('channel','DeepBlue',varargin);
 MD=Metadata(pth); 
-NucFrame=stkread(MD,'Channel','DeepBlue','Position',Well,'specific',1,'flatfieldcorrection',false);
+NucFrame=stkread(MD,'Channel',channel,'Position',Well,'specific',1,'flatfieldcorrection',false);
 
 PIVlbl = PIVLbl;
-PIVlbl.Tvec= MD.getSpecificMetadata('TimestampFrame','Position',Well,'Channel','DeepBlue');
+PIVlbl.Tvec= MD.getSpecificMetadata('TimestampFrame','Position',Well,'Channel',channel);
 PIVlbl.ImageDims = [size(NucFrame,1),size(NucFrame,2)];
 
 fpthpos = [pth filesep Well];
@@ -19,5 +20,5 @@ fpthpos = [pth filesep Well];
     PIVlbl.flist = flistDo;
     PIVlbl.pth = pth;
     PIVlbl.PosName = Well;
-    PIVlbl.setWoundLbl(WoundTracker_v2(pth, Well),Well)
+    PIVlbl.setWoundLbl(WoundTracker_v2(pth, Well,varargin{:}),Well)
 end

@@ -18,6 +18,8 @@ lightred = [1 0.3 0];
 %param = [1.5 2 3 4 8.2 1 2];
 
 %collimated out of collector lense "textbook":
+   set(0,'DefaultTextFontname', 'cmsltt10')
+   set(0,'DefaultAxesFontname', 'cmsltt10')
 
 
 figure('Position',[109 392 850 306])
@@ -43,7 +45,7 @@ color = [blue' blue' blue' red' red' red' green' green' green' ];
 for j=1:length(h)
 set(h(j), 'Color',(color(:,j))');
 end
-title('Perpendicular axis')
+tl = title('Perpendicular axis $\alpha\beta$','interpreter','latex', 'FontName', 'cmsltt10')
 
 L = max(max(beam.x(1:end-1)))-min(min(beam.x(1:end-1)))+4;
 for i=2:2:length(param)
@@ -108,7 +110,7 @@ title('Parallel axis in Chamber')
 
 figure(gcf)
       set(gcf, 'PaperPositionMode','auto')
-print(gcf,'-dpng','-r300',['/Users/Alonyan/Desktop/' 'SPIMBeamPath']);
+print(gcf,'-depsc2','-r300',['/home/alon/Desktop/New/' 'SPIMBeamPath']);
 %snapnow();
 %delete(gcf);
 

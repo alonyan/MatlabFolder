@@ -26,7 +26,7 @@ partitionInfo.channelNames = channelNames;
 
 %%
 
-timepoint = 18;
+timepoint = 50;
 tile = 0;
 tForms = partitionInfo.tForms(find((partitionInfo.timepoint==timepoint).*(partitionInfo.tile==tile)));
 

@@ -9,25 +9,28 @@ cellSizeEst = ParseInputs('EstSize', 6, varargin);
 img = double(img);
 img = img./max(img(:));
 img = padarray(img,[1 1],0);
-GMimg = GradMag_v1(img); %use DAPI for segmentation
+GMimg = GradMag_v1(log(img)); 
 
 %d = fspecial('gaussian',5*cellSizeEst,cellSizeEst);
 se = strel('disk', ceil(cellSizeEst/2));
 %% First, find unit cells
 voronoiCells = ParseInputs('voronoiCells', [], varargin);
-%Smoothen
+hThresh = ParseInputs('hthresh', 0.002, varargin);
+gmThresh = ParseInputs('gmthresh', 0.5, varargin);
+
 if ~isstruct(voronoiCells)&&isempty(voronoiCells)
-    %imgSmooth = imfilter(img,d,'replicate');
+    %Smoothen
     imgSmooth = imgaussfilt(img,cellSizeEst);
-    %imagesc(imgSmooth);shg
+    
     % Threshold
-    img_hmax = imhmax(imgSmooth,0.001); %threshold
+    img_hmax = imhmax(imgSmooth,hThresh); %threshold
     RegionMax = imregionalmax(img_hmax);
     RegionMax = imerode(imdilate(RegionMax,se),se);%clean up regional max
     I = imgSmooth;
+
     I(RegionMax) = 1;%ceil regional maximum
     % find smooth objects
-    imgBW = bwconvhull(im2bw(I,min(0.9,1.5*graythresh(img(100:end-100, 100:end-100)))),'objects'); %find individual objects using convhull
+    imgBW = bwconvhull(im2bw(I,min(0.9,1.5*graythresh(I(100:end-100, 100:end-100)))),'objects'); %find individual objects using convhull
 
     % Watershed
     %distance transform finds the distance to the next white pixel. within a
@@ -46,9 +49,11 @@ RegionBounds = voronoiCells.RegionBounds;
 %RegionBounds will define the large boundaries for all channels 
 %% Now, within every region, impose artificial maxes at the border and max, then watershed again inside to find the outline
 gradmag2 = imimposemin(GMimg(2:end-1, 2:end-1), imgBW | RegionBounds);
-gradmag2 = imhmax(gradmag2,0.5);
+gradmag2 = imhmax(gradmag2,gmThresh);
 
 L = watershed(gradmag2);
+
+L = imopen(L,se);
 
 A = regionprops(L,'Area');
 A = [A.Area];

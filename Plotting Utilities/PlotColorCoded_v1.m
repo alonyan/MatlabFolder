@@ -1,8 +1,12 @@
-function h = PlotColorCoded_v1(XX, YY, Jxx, Jyy, Nbins)
+function h = PlotColorCoded_v1(XX, YY, Jxx, Jyy, Nbins, varargin)
 
 
-
+np = ParseInputs('np',[],varargin);
 Jxy = Jxx&Jyy;
+
+if ~isempty(np)
+    Jxy = datasample(Jxy,np);
+end
 %prepare colorcoding
 [DensityMatrix, Bins] = hist3([XX(Jxy) YY(Jxy)], [Nbins Nbins]);
 Color = interp2(Bins{2}, Bins{1}, DensityMatrix, YY(Jxy), XX(Jxy), '*linear');

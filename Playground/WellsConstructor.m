@@ -9,7 +9,12 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     
     %get the data for this well in all channels
     i=frame;
-    MD=Metadata(fpath,[],1);   
+    
+        MD=Metadata(fpath,[],1);
+
+        if isempty(MD.Values)
+        MD=Metadata(fpath);
+        end
     Channels = MD.unique('Channel');
     Data = struct;
     for i=1:numel(Channels)
@@ -17,7 +22,21 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     Data(i).channel = Channels(i);
     FFToUse =  FF(find(strcmp(arrayfun(@(x) x.channel, FF,'uniformoutput',false),Channels(i)))).img;
     Data(i).img = img - FFToUse +max(FFToUse(:));
+    %img = img - FFToUse;
+    %img(img<0)=0;
+    %Data(i).img = img;
+    
+    if i==indChNuc
+        FFimg = squeeze(awt2Dlite(img,7));
+        img = sum(FFimg(:,:,1:end-1),3);
+        Data(i).img = img + mean(mean(FFimg(:,:,end)));
+    else
+        Data(i).img = backgroundSubtraction(img);
     end
+    
+    end
+    
+    
     
     %size of image
     welllbl.ImageDims = size(img);
@@ -26,7 +45,7 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     indChNuc = find(strcmp(arrayfun(@(x) x.channel, FF,'uniformoutput',false),NucChannel));
     
     NucData = Data(indChNuc).img;
-    %SizeEst =     EstSizeImg(DataDeepBlue);
+    %SizeEst =     EstSizeImg(NucData);
     [L, voronoiCells] = SegmentCellsImg(NucData, 'EstSize',5);
         
     %init ss measurements

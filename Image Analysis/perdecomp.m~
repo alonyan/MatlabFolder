@@ -1,0 +1,48 @@
+function [p,s]=perdecomp(u)
+% %   u : "input graylevel image",
+% %   p : "periodic component",
+% %   s : "smooth component"
+
+  [nx,ny,nz] = size(u);
+  s = zeros(nx,ny,nz);
+
+% %    fill "boundary image" 
+  b = double(u(1,:,:) - u(nx,:,:));
+  s(1,:,:) = b;
+  s(nx,:,:)= - b; 
+
+  b = double(u(:,1,:) - u(:,ny,:));
+  s(:,1,:) =s(:,1,:) + b;
+  s(:,ny,:) = s(:,ny,:) - b;
+  
+  b = double(u(:,:,1) - u(:,:,nz));
+  s(:,:,1) =s(:,:,1) + b;
+  s(:,:,nz) = s(:,:,nz) - b;
+  
+% %   Fourier transform 
+  fft2_s=fftn(s);
+ 
+  cx = 2.0*pi/double(nx);
+  cy = 2.0*pi/double(ny);
+  cz = 2.0*pi/double(nz);
+
+% %  frequencies computation
+X = 1:nx; Y = 1:ny; Z = 1:nz;
+
+mat_x = repmat(cos(2.*pi*(X' -1)/nx),1,ny,nz);
+mat_y = repmat(cos(2.*pi*(Y-1)/ny),nx,1,nz);
+mat_z = permute(repmat(cos(2.*pi*(Z'-1)/nz),1,nx,ny),[2 3 1]);
+
+
+  b=0.5./double(3.0-cos(cx*mat_x)-cos(cy*mat_y)-cos(cz*mat_z));
+  fft2_s = fft2_s .* b;
+  
+% %  (0,0) frequency
+  fft2_s(1,1,1) = 0.0;
+  
+% %  inverse Fourier transform 
+  s=real(ifft2(fft2_s));
+  
+% %   get p=u-s 
+  p = double(u)-s;
+

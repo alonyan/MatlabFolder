@@ -1,4 +1,4 @@
-function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
+function welllbl = WellsConstructor_v1(fpath, Well,frame,NucChannel)
 % FF is a structure array - FF.channel, FF.img
 
     %init WellsLbl object
@@ -9,25 +9,43 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     
     %get the data for this well in all channels
     i=frame;
-    MD=Metadata(fpath);   
+    
+    MD=Metadata(fpath,[],1);
+    
+    if isempty(MD.Values)
+        MD=Metadata(fpath);
+    end
+    
     Channels = MD.unique('Channel');
     Data = struct;
     for i=1:numel(Channels)
     img = stkread(MD,'Channel',Channels(i), 'flatfieldcorrection', false,'blindflatfield',false, 'frame', frame, 'Position', Well,'register',false);
     Data(i).channel = Channels(i);
-    FFToUse =  FF(find(strcmp(arrayfun(@(x) x.channel, FF,'uniformoutput',false),Channels(i)))).img;
-    Data(i).img = img - FFToUse +max(FFToUse(:));
+    %img = img - FFToUse;
+    %img(img<0)=0;
+    %Data(i).img = img;
+    indChNuc = find(strcmp(Channels,NucChannel));
+   
+    if i==indChNuc
+        FFimg = squeeze(awt2Dlite(img,7));
+        img = sum(FFimg(:,:,1:end-1),3);
+        Data(i).img = img + mean(mean(FFimg(:,:,end)));
+    else
+        Data(i).img = backgroundSubtraction(img);
     end
+    
+    end
+    
+    
     
     %size of image
     welllbl.ImageDims = size(img);
     
     %get the nuclear channel and segment
-    indChNuc = find(strcmp(arrayfun(@(x) x.channel, FF,'uniformoutput',false),NucChannel));
     
     NucData = Data(indChNuc).img;
-    %SizeEst =     EstSizeImg(DataDeepBlue);
-    [L, voronoiCells] = SegmentCellsImg(NucData, 'EstSize',5);
+    %SizeEst =     EstSizeImg(NucData);
+    [L, voronoiCells] = SegmentCellsThreshImg(NucData, 'EstSize',8,'hthresh',0.1,'gmthresh',0.2);
         
     %init ss measurements
 
@@ -56,10 +74,8 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     
     
     
-    
-  
-    indOtherChannels = find(~strcmp(arrayfun(@(x) x.channel, FF,'uniformoutput',false),NucChannel));
-    for i=1:numel(indOtherChannels)
+    indOtherChannels = find(~strcmp(Channels,NucChannel));
+    for i=indOtherChannels'
         DataOther = Data(i).img;
         S = regionprops(CCVoronoi,DataOther,'MeanIntensity','PixelValues');
         Intensities = cat(1, S.MeanIntensity);
@@ -70,12 +86,8 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     end
 
     
-    
-    
-    
-    
     %Apply drift correction to centroids!
-    Tforms = MD.getSpecificMetadata('driftTform','Position',Well, 'frame', i);
+    Tforms = MD.getSpecificMetadata('driftTform','Position',Well, 'frame', frame);
     if ~isempty(Tforms)
         dY = Tforms{1}(7);
         dX = Tforms{1}(8);
@@ -95,7 +107,7 @@ function welllbl = WellsConstructor(fpath, Well,frame, FF,NucChannel)
     welllbl.num = numel(NuclearIntensities);
 
 
-    i
+    frame
     
     
     

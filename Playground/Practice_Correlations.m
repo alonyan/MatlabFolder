@@ -30,7 +30,7 @@ A.V = exp(-0.001*(A.Y1-5).^2).*exp(-0.005*(A.Y2-20).^2);
     by1 = reshape(A.Y2,[],1);
     arrow3([bx1,by1],[bx1+3*bu,by1+3*bv],'|1',0.4,0.8)
     twovCorr = kron(A.V, A.V)+kron(A.U, A.U);
-%% make indibidual maps for each square. This is mostly for presentation.
+%% make individual maps for each square. This is mostly for presentation.
 
 clear DistMaps
 clear CorrMaps
